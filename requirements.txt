@@ -1,0 +1,11 @@
+qiskit==0.46.3
+qiskit-aer==0.14.2
+numpy==1.23.5
+scipy==1.13.1
+networkx==3.2.1
+pymetis==2023.1.1
+pulp==2.8.0
+cvxpy==1.6.4
+pandas==2.2.3
+sympy==1.13.3
+matplotlib==3.9.4

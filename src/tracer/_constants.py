@@ -1,0 +1,1 @@
+COLOR_MAP = {'Local Ops': '#b3f7ff', 'Local CNOT': '#b3f7ff', 'Local SWAP': '#b3f7ff', 'Transfer': '#FF8A7C', 'RELOCATE': '#B3D700', 'Re-CNOT': '#190094', 'MoveBack': '#190094'}

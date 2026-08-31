@@ -1,0 +1,8 @@
+ROUTING_COST_RELOC_WEIGHT = 1.0
+ROUTING_COST_RECNOT_WEIGHT = 1.77
+ROUTING_COST_RELEASE_WEIGHT = 1.0
+MAX_MOVE_ROUNDS = 10000
+INF = 10 ** 9
+EVICT_COOLDOWN_WINDOW = 4
+def compute_routing_cost(num_relocates, num_recnots, num_releases):
+ return (num_relocates * ROUTING_COST_RELOC_WEIGHT + num_recnots * ROUTING_COST_RECNOT_WEIGHT + num_releases * ROUTING_COST_RELEASE_WEIGHT)

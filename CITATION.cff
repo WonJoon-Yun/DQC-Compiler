@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite the IRIS paper."
+title: "IRIS: A Compiler For Optimized Scheduling In Distributed Quantum Computers"
+type: software
+authors:
+  - family-names: Yun
+    given-names: Won Joon
+    affiliation: "The University of Texas at Austin"
+    email: wonjoon.yun@utexas.edu
+  - family-names: Nag
+    given-names: Dhilan
+  - family-names: Ballabh
+    given-names: Sneha
+  - family-names: Zhao
+    given-names: Jiapeng
+  - family-names: Kaur
+    given-names: Eneet
+  - family-names: Das
+    given-names: Poulami
+year: 2026
+url: "https://arxiv.org/html/2605.21795v1"
+identifiers:
+  - type: other
+    value: "arXiv:2605.21795"
+    description: "arXiv preprint"
+license: MIT
+preferred-citation:
+  type: article
+  title: "IRIS: A Compiler For Optimized Scheduling In Distributed Quantum Computers"
+  authors:
+    - family-names: Yun
+      given-names: Won Joon
+    - family-names: Nag
+      given-names: Dhilan
+    - family-names: Ballabh
+      given-names: Sneha
+    - family-names: Zhao
+      given-names: Jiapeng
+    - family-names: Kaur
+      given-names: Eneet
+    - family-names: Das
+      given-names: Poulami
+  year: 2026
+  url: "https://arxiv.org/html/2605.21795v1"
+  identifiers:
+    - type: other
+      value: "arXiv:2605.21795"
