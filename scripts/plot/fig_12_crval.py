@@ -61,7 +61,7 @@ def main():
     ax.set_yticks([0, 2, 4, 6, 8] if top <= 9 else [0, 4, 8, 12])
     ax.set_ylim(0, top * 1.15 + 0.5)
     ax.legend(fontsize=11, labelspacing=0.25, borderpad=0.35,
-              handlelength=1.4, loc='upper left')
+              handlelength=1.4, loc='upper right')
 
     plt.tight_layout()
     fig.savefig(args.output, bbox_inches='tight', pad_inches=0.05)

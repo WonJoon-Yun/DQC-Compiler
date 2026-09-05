@@ -33,13 +33,19 @@ def _load_json(path):
 
 def load_budget(root, sched, c, bench, compute):
     arch = f'S{compute + 2 * c}C{c}-2x2'
-    run_dir = os.path.join(root, 'MinCut', sched, f'{bench}-{arch}')
-    for pat in ('results*.json', 'results*.json.gz', '**/results-*.json'):
-        g = sorted(glob.glob(os.path.join(run_dir, pat), recursive=True))
-        if g:
-            d = _load_json(g[0])
-            return (d['num_state_teleportations'] + d['num_gate_teleportations'],
-                    d['total_execution_time'] * 1000.0)
+    # The IRIS side must use the EES (IRIS default) schedule latency. The
+    # dataset's shared main-experiment entry stores the pre-EES latency, so
+    # prefer the -ees scheduling variant when the tree carries one.
+    scheds = (f'{sched}-ees', sched) if sched != 'QuComm' else (sched,)
+    for s in scheds:
+        run_dir = os.path.join(root, 'MinCut', s, f'{bench}-{arch}')
+        for pat in ('results*.json', 'results*.json.gz', '**/results-*.json'):
+            g = sorted(glob.glob(os.path.join(run_dir, pat), recursive=True))
+            if g:
+                d = _load_json(g[0])
+                return (d['num_state_teleportations']
+                        + d['num_gate_teleportations'],
+                        d['total_execution_time'] * 1000.0)
     raise SystemExit(f'no results under {run_dir}')
 
 

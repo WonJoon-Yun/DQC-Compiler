@@ -14,9 +14,9 @@ The vendored `_build_qec_summary.py` reads those JSONs and emits
 headline section, and emits the paper's compact Table 7 (T_eff + L_cycle for
 both stages, plus a relative row).
 
-Logical Cycle Time model (vendored script):
-    LCT = total_execution_time*1000 + rounds*t_meas_reset + t_final_meas
-with t_meas_reset = t_final_meas = 1.0 ms (paper calibration).
+Logical cycle time (L_cycle) is the latency of the syndrome-extraction
+schedule; the IRIS value uses the EES-replay latency, matching the latency
+definition used throughout the paper.
 """
 from __future__ import annotations
 
@@ -51,25 +51,29 @@ HEADER = ["Code", "QuComm T_eff", "QuComm L_cycle (ms)",
 
 # Primary source: the QEC runs in the main results tree (present both in the
 # IRIS-dataset and in results/_full after `bash scripts/table_7.sh`).
-# (display, bench, archdir, rounds=d) — rounds per _build_qec_summary CODES.
 QEC_RUNS = [
-    ("Bivariate Bicycle [[72,12,6]]", "bb_72_12_6_n144", "S46C5-2x2", 6),
-    ("Color [[61,1,9]]", "color_61_1_9_n121", "S42C5-2x2", 9),
-    ("Surface [[49,1,7]]", "surface_code_n97", "S33C4-2x2", 7),
+    ("Bivariate Bicycle [[72,12,6]]", "bb_72_12_6_n144", "S46C5-2x2"),
+    ("Color [[61,1,9]]", "color_61_1_9_n121", "S42C5-2x2"),
+    ("Surface [[49,1,7]]", "surface_code_n97", "S33C4-2x2"),
 ]
-T_MEAS_RESET_MS = 1.0
-T_FINAL_MEAS_MS = 1.0
 
 
 def _rows_from_results_tree() -> list[list[str]] | None:
     """Compute Table 7 directly from the QuComm / IRIS run results.
 
+    L_cycle is the latency of the syndrome-extraction schedule: the stored
+    schedule latency for QuComm, and the EES-replay latency for IRIS (the
+    IRIS latency definition used throughout the paper). The Relative row is
+    the geometric mean of the per-code IRIS/QuComm ratios.
+
     Returns None when any of the six runs is missing, so the caller can fall
     back to the bundled QEC sweep or (last resort) the reference values.
     """
+    from _lib import extra_opt_json
     rows = [HEADER]
-    qc_teff_sum = qc_lct_sum = ir_teff_sum = ir_lct_sum = 0.0
-    for display, bench, archdir, rounds in QEC_RUNS:
+    teff_ratios: list[float] = []
+    lct_ratios: list[float] = []
+    for display, bench, archdir in QEC_RUNS:
         pair = []
         for variant in ("QuComm", "IRIS-opt1"):
             path = result_json(variant, archdir, "ILP", bench)
@@ -77,15 +81,24 @@ def _rows_from_results_tree() -> list[list[str]] | None:
                 return None
             d = load_json(path)
             teleports = int(d.get("num_state_teleportations", 0))
-            lct_ms = (float(d.get("total_execution_time", 0.0)) * 1000.0
-                      + rounds * T_MEAS_RESET_MS + T_FINAL_MEAS_MS)
+            lct_ms = float(d.get("total_execution_time", 0.0)) * 1000.0
+            if variant == "IRIS-opt1":
+                eo = extra_opt_json(archdir, "ILP", bench)
+                if eo is not None:
+                    lct_ms = float(load_json(eo)["wall_time_ms_extra"])
             pair.append((teleports, lct_ms))
         (qc_t, qc_l), (ir_t, ir_l) = pair
         rows.append([display, f"{qc_t}", f"{qc_l:.0f}", f"{ir_t}", f"{ir_l:.0f}"])
-        qc_teff_sum += qc_t; qc_lct_sum += qc_l
-        ir_teff_sum += ir_t; ir_lct_sum += ir_l
+        teff_ratios.append(ir_t / qc_t)
+        lct_ratios.append(ir_l / qc_l)
+    def _gmean(xs: list[float]) -> float:
+        prod = 1.0
+        for x in xs:
+            prod *= x
+        return prod ** (1.0 / len(xs))
+
     rows.append(["Relative", "1.00", "1.00",
-                 f"{ir_teff_sum / qc_teff_sum:.2f}", f"{ir_lct_sum / qc_lct_sum:.2f}"])
+                 f"{_gmean(teff_ratios):.2f}", f"{_gmean(lct_ratios):.2f}"])
     return rows
 
 def _emit(out: Path, rows: list[list[str]]) -> None:
