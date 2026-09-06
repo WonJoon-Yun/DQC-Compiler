@@ -8,6 +8,7 @@ Produced by scripts/fig_13.sh. T_eff = #state_teleportations +
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 from pathlib import Path
 
@@ -27,11 +28,26 @@ CONFIGS = [
 ]
 
 
+# fig_13.sh ablation tag -> dataset scheduling directory
+DATASET_DIRS = {
+    "QuComm-default": "QuComm",
+    "QuComm-next-k": "QuComm-nextk",
+    "IRIS-single-candidate": "IRIS-single",
+    "IRIS-next-k": "IRIS-nextk",
+    "IRIS-default": "IRIS",
+}
+
+
 def teff(run_dir: Path) -> float:
     matches = sorted(run_dir.glob("results*.json"))
-    if not matches:
-        raise SystemExit(f"no results*.json in {run_dir} (run scripts/fig_13.sh first)")
-    d = json.loads(matches[0].read_text())
+    if matches:
+        d = json.loads(matches[0].read_text())
+    else:
+        matches = sorted(run_dir.glob("results*.json.gz"))
+        if not matches:
+            raise SystemExit(f"no results*.json in {run_dir} "
+                             "(run scripts/fig_13.sh first)")
+        d = json.loads(gzip.decompress(matches[0].read_bytes()))
     return (d.get("num_state_teleportations", 0)
             + ALPHA_RECNOT * d.get("num_gate_teleportations", 0))
 
@@ -39,14 +55,23 @@ def teff(run_dir: Path) -> float:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True, type=Path,
-                    help="Ablation root (results/<...>/ablation)")
+                    help="Ablation root (results/<...>/ablation), or the "
+                         "IRIS-dataset root with --layout dataset")
+    ap.add_argument("--layout", choices=["ablation", "dataset"],
+                    default="ablation",
+                    help="dataset: read MinCut/<scheduling>/ run dirs")
     ap.add_argument("--bench", required=True, help="e.g. qaoa_3reg_n120")
     ap.add_argument("--archdir", required=True, help="e.g. S40C5-2x2")
     ap.add_argument("--output", required=True, type=Path)
     args = ap.parse_args()
 
-    values = [teff(args.root / tag / f"{args.bench}-{args.archdir}")
-              for (tag, _, _) in CONFIGS]
+    if args.layout == "dataset":
+        run_dirs = [args.root / "MinCut" / DATASET_DIRS[tag]
+                    / f"{args.bench}-{args.archdir}" for (tag, _, _) in CONFIGS]
+    else:
+        run_dirs = [args.root / tag / f"{args.bench}-{args.archdir}"
+                    for (tag, _, _) in CONFIGS]
+    values = [teff(d) for d in run_dirs]
 
     plt.rcParams.update({"font.size": 15, "pdf.fonttype": 42, "ps.fonttype": 42})
     fig, ax = plt.subplots(figsize=(7.4, 2.9))
@@ -67,6 +92,12 @@ def main() -> None:
     fig.savefig(args.output.with_suffix(".png"), bbox_inches="tight",
                 pad_inches=0.05, dpi=300)
     plt.close(fig)
+
+    csv_path = args.output.with_suffix(".csv")
+    with csv_path.open("w") as fh:
+        fh.write("config,teff\n")
+        for (tag, _, _), v in zip(CONFIGS, values):
+            fh.write(f"{tag},{v:.2f}\n")
 
     print(f"{'config':<24s} T_eff")
     for (tag, _, _), v in zip(CONFIGS, values):

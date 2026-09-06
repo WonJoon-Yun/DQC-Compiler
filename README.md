@@ -46,6 +46,10 @@ and mapping caches from `./IRIS-dataset` (also accepts `../IRIS-dataset`,
 bash scripts/get_data_all.sh --from_dataset
 ```
 
+This produces every table and figure under `data_generator/output/`. The
+first run replays the schedules once to obtain the EES latency; the replays
+are cached under `results/_dataset_cache/`.
+
 ### 3.2 Full re-run workflow (About 7 days on 160 cores)
 ```bash
 RESULTS_DIR=$PWD/results/_full bash scripts/reproduce_all.sh

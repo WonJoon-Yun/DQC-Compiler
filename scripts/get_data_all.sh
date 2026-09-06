@@ -68,8 +68,10 @@ if [[ "$MODE" == "dataset" ]]; then
   CACHE="$AE_ROOT/results/_dataset_cache"
   export EXTRA_OPT_CACHE="$CACHE"
   echo "[get_data_all] source: dataset at $DS"
-  echo "[get_data_all] EES replay sidecars -> $CACHE (cached; first run ~10 min)"
-  for sched_gz in "$DS"/{MinCut,GCP-E,sOEE,WBCP}/IRIS/*/schedule.json.gz; do
+  echo "[get_data_all] EES replay sidecars -> $CACHE (cached; first run ~30 min)"
+  for sched_gz in "$DS"/{MinCut,GCP-E,sOEE,WBCP}/IRIS/*/schedule.json.gz \
+                  "$DS"/MinCut/IRIS-bw*/*/schedule.json.gz \
+                  "$DS"/MinCut/IRIS-lh*/*/schedule.json.gz; do
     [[ -f "$sched_gz" ]] || continue
     run_dir="$(dirname "$sched_gz")"
     name="$(basename "$run_dir")"
@@ -117,5 +119,20 @@ if [[ "$MODE" == "dataset" && ( -z "$SECTION" || "$SECTION" == "section6" ) ]]; 
   python "$SCRIPT_DIR/plot/fig_18_commbudget.py" \
       --root "$DS" --bench qaoa_3reg_n120 --compute 30 \
       --output "$OUT6/figure18_commbudget.pdf"
+  # Figure 13: render from the ablation runs stored in the dataset; older
+  # dataset copies without them fall back to the deterministic re-run from
+  # the shipped mapping.
+  if [[ -d "$DS/MinCut/IRIS-nextk" ]]; then
+    python "$SCRIPT_DIR/plot/fig_13_contrib.py" \
+        --root "$DS" --layout dataset \
+        --bench qaoa_3reg_n120 --archdir S40C5-2x2 \
+        --output "$OUT6/figure13_contrib.pdf"
+  else
+    if [[ ! -f "$AE_ROOT/figures/fig_contrib_qaoa_3reg.pdf" || "${FORCE:-0}" == "1" ]]; then
+      echo "[get_data_all] Figure 13 ablation re-run (five configurations, about 15 min)"
+      RESULTS_DIR="$AE_ROOT/results/_full" bash "$SCRIPT_DIR/fig_13.sh"
+    fi
+    cp "$AE_ROOT/figures/fig_contrib_qaoa_3reg.pdf" "$OUT6/figure13_contrib.pdf"
+  fi
 fi
 echo "[get_data_all] outputs -> data_generator/output/"
