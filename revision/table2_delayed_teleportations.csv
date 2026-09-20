@@ -1,0 +1,6 @@
+benchmark,total_RELOCATEs,delayed_RELOCATEs,delayed_pct,avg_wait_ms
+QAOA-FC,7640,3466,45.4,7.5
+QFT,7298,4022,55.1,24.6
+QV,51740,26842,51.9,11.9
+Shor,7861,4170,53.0,36.3
+VQE,4267,2148,50.3,11.1

@@ -231,10 +231,11 @@ def main() -> None:
     csv_path = out / "figure16_w_group_sensitivity.csv"
     rows = _collect()
     with csv_path.open("w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["variant", "axis", "value", "bench",
-                                          "archdir", "teff",
-                                          "total_execution_time_s",
-                                          "latency_s", "compile_time_total_s"])
+        w = csv.DictWriter(f, lineterminator="\n",
+                           fieldnames=["variant", "axis", "value", "bench",
+                                       "archdir", "teff",
+                                       "total_execution_time_s", "latency_s",
+                                       "compile_time_total_s"])
         w.writeheader()
         for r in sorted(rows, key=lambda r: (r["axis"], r["variant"],
                                              r["value"], r["bench"])):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Apply the QuComm post-hoc extra-optimization (block-level parallelization)
-to an EES schedule JSON written by run.py --enable_ees.
+"""Apply EES as post-processing (block-level parallelization) to a schedule
+JSON written by run.py.
 
 Usage:
     python apply_extra_opt.py --schedule <path>/Schedule-*.json --arch F240 \
@@ -93,7 +93,7 @@ def _wall_time_ms(rows):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--schedule", required=True, type=Path,
-                    help="Path to a Schedule-*.json from run.py --enable_ees")
+                    help="Path to schedule.json from run.py")
     ap.add_argument("--arch", required=True,
                     help="Architecture preset (F120/F180/F240/F500/F800/F1100)")
     ap.add_argument("--out", required=True, type=Path,
