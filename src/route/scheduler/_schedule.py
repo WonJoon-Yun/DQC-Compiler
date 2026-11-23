@@ -25,7 +25,6 @@ def schedule_blocks(blocks, aggs, block_ids, start_state, connectivity, K, block
     capture_lookahead_debug = False
     lookahead_debug_list = None
     foresight_global_plans = {}
-    foresight_global_meta = None
     if route_algo == 'our_qucomm' and qucomm_enable_gate_lookahead and (qucomm_gate_lookahead_depth > 0) and qucomm_enable_gate_foresight:
         (foresight_global_plans, _, foresight_global_meta) = choose_qucomm_global_foresight_plan(blocks=blocks, aggs=aggs, block_ids=block_ids, start_block_index=0, position_table=position_table, channel_dict=channel_dict, atom_paths=atom_paths, interact_info=interact_info, connectivity=connectivity, lookahead_depth=qucomm_gate_lookahead_depth, candidate_eval_mode=candidate_eval_mode, one_meet_tiebreak_mode=one_meet_tiebreak_mode, enable_teleport_hybrid=enable_teleport_hybrid, beam_width=qucomm_gate_lookahead_beam_width, planning_option=qucomm_gate_lookahead_option, sort_mode=qucomm_gate_lookahead_sort_mode, beam_prune_mode=qucomm_gate_lookahead_prune_mode, future_block_decay_mode=qucomm_future_block_decay_mode, block_levels=block_levels, collect_debug=capture_lookahead_debug, disable_future_touch=disable_future_touch)
         if print_debug:
@@ -48,16 +47,9 @@ def schedule_blocks(blocks, aggs, block_ids, start_state, connectivity, K, block
         (detailed_rows, atom_paths, channel_dict, num_relocates, num_recnots, num_epr_release, interact_info) = result
         _validate_route_result(detailed_rows, channel_dict, num_relocates, num_recnots, num_epr_release, bid)
         routing_cost = compute_routing_cost(num_relocates, num_recnots, num_epr_release)
+        # A suggested meeting action can fall back during routing. The next
+        # block starts from the paths and channel balances that actually ran.
         _update_position_table(position_table, atom_paths)
-        if qucomm_enable_gate_foresight and foresight_global_meta is not None:
-            predicted_states = foresight_global_meta.get('predicted_block_end_states', {})
-            predicted = predicted_states.get(i)
-            if predicted is not None:
-                position_table.update(predicted['position_table'])
-                channel_dict.clear()
-                channel_dict.update(predicted['channel_dict'])
-                for q in predicted['atom_paths']:
-                    atom_paths[q] = list(predicted['atom_paths'][q])
         total_relocates += num_relocates
         total_recnots += num_recnots
         total_releases += num_epr_release
