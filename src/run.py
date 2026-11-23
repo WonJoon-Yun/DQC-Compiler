@@ -1,5 +1,4 @@
 """Some additional info:"""
-from collections import defaultdict
 import argparse
 import json
 import os
@@ -8,6 +7,7 @@ import sys
 import tracemalloc
 import traceback
 from parser import ProgramParser
+from mapping_cache import can_reuse_cached_layers
 import numpy as np
 from hardware import Hardware
 from hyperparameters import HyperParameters
@@ -65,25 +65,6 @@ def mapping_cache_matches_config(cache_data, args):
     if cached_tol is None:
         return False
     return abs(float(cached_tol) - float(args.oee_tol)) < 1e-12
-
-def cached_layers_match_program(mapping, layers, program):
-    # Independent gates may move between layers. The directed gate sequence on
-    # each wire must still match the parsed program under the cached placement.
-    def gates_by_wire(gates):
-        traces = defaultdict(list)
-        for control, target in gates:
-            gate = (control, target)
-            traces[control].append(gate)
-            traces[target].append(gate)
-        return traces
-
-    if len(set(mapping.values())) != len(mapping):
-        return False
-    try:
-        expected = gates_by_wire((mapping[str(a)], mapping[str(b)]) for a, b in program)
-    except KeyError:
-        return False
-    return expected == gates_by_wire(gate for layer in layers for gate in layer)
 
 def _env_flag(name, default=False):
     raw = os.environ.get(name)
@@ -194,8 +175,8 @@ from mapper import Mapper
 reuse_mapping = False
 cache_files_present = [os.path.exists(f'{mapping_cache_dir}/{name}.json')
                        for name in ('mapping', 'layers', 'compile_time')]
-# A partial flat cache can also contain stale mapping/layers after an interrupted run.
-refresh_cache_dir = mapping_cache_dir if program_parser.has_multiple_qregs and any(cache_files_present) else None
+# Replace stale or partial caches in the same directory they were read from.
+refresh_cache_dir = mapping_cache_dir if any(cache_files_present) else None
 if all(cache_files_present):
     with open(f'{mapping_cache_dir}/compile_time.json', 'r') as f:
         data = json.load(f)
@@ -204,10 +185,9 @@ if all(cache_files_present):
             qubit_mapping = json.load(f)
         with open(f'{mapping_cache_dir}/layers.json', 'r') as f:
             layers = json.load(f)
-        reuse_mapping = not program_parser.has_multiple_qregs or cached_layers_match_program(
-            qubit_mapping, layers, program_parser())
+        reuse_mapping = can_reuse_cached_layers(qubit_mapping, layers, program_parser)
         if not reuse_mapping:
-            print('[INFO] Cached layers disagree with circuit-wide qubit indices. Recompiling mapping.')
+            print('[INFO] Cached layers disagree with the parsed CX sequence. Recompiling mapping.')
     else:
         print('[INFO] Mapping cache exists but OEE config differs. Recompiling mapping.')
 if reuse_mapping:
