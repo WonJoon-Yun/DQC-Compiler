@@ -7,14 +7,14 @@ Usage:
         --out <path>/extra_opt.json
 
 Output JSON fields:
-    teff_orig            -- original effective teleportation count (= ops)
-    teff_extra_opt       -- after parallelization
+    teff_orig            -- legacy field counting original operation rows
+    teff_extra_opt       -- operation rows after parallelization
     cycles_orig          -- number of distinct original time slots
     cycles_extra_opt     -- number of cycles after parallelization
     wall_time_ms_orig    -- sum of per-cycle max durations (original)
     wall_time_ms_extra   -- same metric on the extra-opt schedule
     link_epr_capacity    -- per-link EPR cap used for the optimizer
-    violations           -- list of post-condition violations (empty on success)
+    violations           -- first location error per replay stage in historical mode
 """
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ SRC_DIR = AE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_locations
 from router.optim.early_execution import qucomm_parallel_schedule  # noqa: E402
 
 
@@ -48,36 +49,7 @@ def parse_link_cap(arch: str) -> int:
 
 
 def schedule_to_pipeline(schedule_path: Path):
-    if str(schedule_path).endswith(".gz"):
-        import gzip
-        data = json.loads(gzip.decompress(schedule_path.read_bytes()))
-    else:
-        data = json.loads(schedule_path.read_text())
-    ops = data["ops"]
-    starts = sorted({o["original_start_time"] for o in ops})
-    s2t = {s: i for i, s in enumerate(starts)}
-    pipe, chips = [], set()
-    for o in ops:
-        t = s2t[o["original_start_time"]]
-        pos0 = tuple(o["pos0"])
-        pos1 = tuple(o["pos1"])
-        chips.add(pos0)
-        chips.add(pos1)
-        bid = int(o["layer_id"])
-        dur = float(o.get("original_duration", 0.0))
-        if o["optype"] in ("Local CNOT", "Re-CNOT"):
-            r = {"Time": t, "CNOT": True,
-                 "SIdx": int(o["atom0"]), "TIdx": int(o["atom1"]),
-                 "SPos": pos0, "SNextPos": pos0, "TPos": pos1, "TNextPos": pos1,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        else:
-            r = {"Time": t, "CNOT": False,
-                 "SIdx": int(o["atom0"]), "TIdx": int(o["atom0"]),
-                 "SPos": pos0, "SNextPos": pos1, "TPos": pos0, "TNextPos": pos0,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        pipe.append(r)
-    init_ch = {(a, b): 0 for a in chips for b in chips if a != b}
-    return pipe, init_ch
+    return pipeline_rows(read_schedule(schedule_path)["ops"])
 
 
 def _wall_time_ms(rows):
@@ -98,9 +70,26 @@ def main():
                     help="Architecture preset (F120/F180/F240/F500/F800/F1100)")
     ap.add_argument("--out", required=True, type=Path,
                     help="Output JSON path")
+    ap.add_argument("--historical-replay", action="store_true",
+                    help="Reproduce archived timing and record location errors in the output")
     args = ap.parse_args()
 
-    pipe, init_ch = schedule_to_pipeline(args.schedule)
+    schedule = read_schedule(args.schedule)
+    initial = initial_locations(schedule)
+    pipe, init_ch = pipeline_rows(schedule["ops"])
+    del schedule
+    violations = []
+
+    def check_locations(rows, *, original_times=False):
+        try:
+            validate_locations(rows, initial, original_times=original_times)
+        except ValueError as error:
+            if not args.historical_replay:
+                raise
+            stage = "emitted" if original_times else "postprocessed"
+            violations.append(f"{stage}: {error}")
+
+    check_locations(pipe, original_times=True)
     link_cap = parse_link_cap(args.arch)
 
     wall_orig, cycles_orig = _wall_time_ms(pipe)
@@ -112,6 +101,7 @@ def main():
         debug=False,
         verify_postcondition=True,
     )
+    check_locations(res)
     wall_extra, cycles_extra = _wall_time_ms(res)
 
     out = {
@@ -125,8 +115,10 @@ def main():
         "wall_time_ms_orig": wall_orig,
         "wall_time_ms_extra": wall_extra,
         "speedup": (wall_orig / wall_extra) if wall_extra > 0 else None,
-        "violations": [],
+        "violations": violations,
     }
+    if args.historical_replay:
+        out["historical_replay"] = True
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, indent=2))
     print(f"wrote {args.out}: cycles {cycles_orig} -> {cycles_extra}, "

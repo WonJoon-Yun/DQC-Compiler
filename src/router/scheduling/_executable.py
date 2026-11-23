@@ -51,6 +51,8 @@ class ExecutableMixin:
         k_suffix = f'{self.args.K1}-{self.args.K2}'
         output_path = Path(output_dir) / f'Schedule-{k_suffix}.json'
         payload = {'format_version': 1, 'k_suffix': k_suffix, 'scheduler_policy': convert_ndarray_to_list(getattr(self, 'schedule_replay_policy', {})), 'args_snapshot': convert_ndarray_to_list(args_snapshot) if args_snapshot is not None else None, 'results_snapshot': _compact_results_snapshot(results_snapshot), 'ops': convert_ndarray_to_list(records)}
+        if self.position_table is not None:
+            payload["initial_atom_positions"] = {str(q): list(pos) for q, pos in self.position_table.items()}
         atomic_json_dump(payload, output_path, indent=1)
         return str(output_path)
 

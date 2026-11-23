@@ -36,8 +36,10 @@ for s in "${SCRIPTS[@]}"; do
   fi
 done
 
-# Final post-hoc verification of every IRIS-opt1 schedule.
-python "$AE_ROOT/tests/verify_extra_opt.py" --root "$RESULTS_DIR" || true
+# Verify emitted locations for all three variants and the post-processed IRIS schedule.
+if ! python "$AE_ROOT/tests/verify_extra_opt.py" --root "$RESULTS_DIR" --variant QuComm --variant IRIS-noEES --variant IRIS; then
+  FAILED+=(verify_extra_opt.py)
+fi
 
 echo
 echo "=== reproduce_all.sh summary ==="

@@ -1,17 +1,8 @@
 #!/usr/bin/env python3
-"""End-to-end verification microbenchmark for qucomm_parallel_schedule.
+"""Replay raw atom locations for each requested variant in the IRIS-dataset layout.
 
-For every IRIS run in results/<Mapping>/IRIS/<bench>-<archdir>/ (the
-IRIS-dataset layout), this
-script:
-  1. Loads the EES Schedule JSON.
-  2. Converts to a pipeline and runs qucomm_parallel_schedule.
-  3. Verifies the placed output against ALL post-conditions:
-       (a) Per-cycle qubit collision  (data dependency at same time)
-       (b) Per-qubit dependency order  (consecutive uses obey time order)
-       (c) Channel state bounds  [min_comm_value, max_comm_value]
-       (d) Per-direction edge capacity  max_comm_value // 2
-       (e) Per-link bidirectional EPR cap  link_epr_capacity
+For IRIS, also run qucomm_parallel_schedule and check the resulting locations,
+per-cycle atom usage, channel bounds, directional capacity and link EPR cap.
 
 Usage:
     python tests/verify_extra_opt.py --root results
@@ -20,7 +11,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from collections import defaultdict
@@ -32,6 +22,7 @@ SRC_DIR = AE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_locations
 from router.optim.early_execution import (  # noqa: E402
     apply_deltas, is_move_row, qucomm_parallel_schedule,
     row_channel_deltas, row_used_qubits,
@@ -52,31 +43,6 @@ def parse_link_cap(arch: str) -> int:
         return _LINK_CAP_BY_ARCH[arch]
     m = re.search(r"C(\d+)", arch)
     return int(m.group(1)) if m else 5
-
-
-def schedule_to_pipeline(schedule_path: Path) -> Tuple[List[Row], Dict[Edge, int]]:
-    data = json.loads(schedule_path.read_text())
-    ops = data["ops"]
-    starts = sorted({o["original_start_time"] for o in ops})
-    s2t = {s: i for i, s in enumerate(starts)}
-    pipe, chips = [], set()
-    for o in ops:
-        t = s2t[o["original_start_time"]]
-        pos0, pos1 = tuple(o["pos0"]), tuple(o["pos1"])
-        chips.add(pos0); chips.add(pos1)
-        bid = int(o["layer_id"])
-        dur = float(o.get("original_duration", 0.0))
-        if o["optype"] in ("Local CNOT", "Re-CNOT"):
-            r = {"Time": t, "CNOT": True, "SIdx": int(o["atom0"]), "TIdx": int(o["atom1"]),
-                 "SPos": pos0, "SNextPos": pos0, "TPos": pos1, "TNextPos": pos1,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        else:
-            r = {"Time": t, "CNOT": False, "SIdx": int(o["atom0"]), "TIdx": int(o["atom0"]),
-                 "SPos": pos0, "SNextPos": pos1, "TPos": pos0, "TNextPos": pos0,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        pipe.append(r)
-    init_ch = {(a, b): 0 for a in chips for b in chips if a != b}
-    return pipe, init_ch
 
 
 def verify_pipeline(pipeline, init_ch, min_v, max_v, link_cap):
@@ -146,17 +112,17 @@ _ARCH_BY_DIR = {"S40C5-2x2": "F120", "S42C5-2x3": "F180", "S40C5-3x3": "F240",
 _ARCHDIR_RE = re.compile(r"^(.*)-(S\d+C\d+-\d+x\d+)$")
 
 
-def discover(root: Path, arch_filter, bench_filter):
-    """Yield (arch, mapper, bench, schedule_path) from <root>/<Mapping>/IRIS/<bench>-<archdir>/."""
+def discover(root: Path, arch_filter, bench_filter, variant="IRIS"):
+    """Find schedules for one compiler variant in the dataset or results layout."""
     if not root.exists():
         return
     for m_dir in sorted(root.iterdir()):
         if not m_dir.is_dir() or m_dir.name not in _DS2MAPPER:
             continue
-        opt1_root = m_dir / "IRIS"
-        if not opt1_root.exists():
+        variant_root = m_dir / variant
+        if not variant_root.exists():
             continue
-        for run_dir in sorted(opt1_root.iterdir()):
+        for run_dir in sorted(variant_root.iterdir()):
             if not run_dir.is_dir():
                 continue
             m = _ARCHDIR_RE.match(run_dir.name)
@@ -168,7 +134,8 @@ def discover(root: Path, arch_filter, bench_filter):
                 continue
             if bench_filter and bench not in bench_filter:
                 continue
-            sched = next(iter(sorted(run_dir.glob("[Ss]chedule*.json"))), None)
+            sched = next((p for pattern in ("[Ss]chedule*.json", "[Ss]chedule*.json.gz")
+                          for p in sorted(run_dir.glob(pattern))), None)
             if sched is not None:
                 yield (arch, _DS2MAPPER[m_dir.name], bench, sched)
 
@@ -176,7 +143,9 @@ def discover(root: Path, arch_filter, bench_filter):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=AE_ROOT / "results", type=Path,
-                    help="Results root (must contain IRIS-opt1/)")
+                    help="Results or dataset root containing mapping-method directories")
+    ap.add_argument("--variant", action="append", choices=("QuComm", "IRIS-noEES", "IRIS"),
+                    help="Check the raw schedule for this variant, plus post-processing for IRIS (default)")
     ap.add_argument("--arch", action="append", help="Restrict to archs")
     ap.add_argument("--bench", action="append", help="Restrict to benchmarks")
     ap.add_argument("--min_comm", type=int, default=-1000)
@@ -186,36 +155,49 @@ def main() -> int:
 
     arch_set = set(args.arch) if args.arch else None
     bench_set = set(args.bench) if args.bench else None
-    targets = list(discover(args.root, arch_set, bench_set))
-    if not targets:
-        print(f"No schedules under {args.root}/<Mapping>/IRIS/")
-        return 1
-
+    variants = list(dict.fromkeys(args.variant or ["IRIS"]))
     ok = fail = 0
-    for arch, mapper, bench, sched in targets:
-        pipe, init_ch = schedule_to_pipeline(sched)
+    targets = []
+    for variant in variants:
+        found = list(discover(args.root, arch_set, bench_set, variant))
+        if not found:
+            print(f"No schedules for {variant} under {args.root} with the selected filters")
+            fail += 1
+            if args.stop_on_fail:
+                return 1
+        targets.extend((variant, *target) for target in found)
+    for variant, arch, mapper, bench, sched in targets:
+        label = f"{variant}/{arch}/{mapper}/{bench}"
         link_cap = parse_link_cap(arch)
         try:
-            res = qucomm_parallel_schedule(
-                pipe, init_ch, min_comm_value=args.min_comm, max_comm_value=args.max_comm,
-                link_epr_capacity=link_cap, debug=False,
-            )
+            schedule = read_schedule(sched)
+            initial = initial_locations(schedule)
+            pipe, init_ch = pipeline_rows(schedule["ops"])
+            del schedule
+            validate_locations(pipe, initial, original_times=True)
+            res, viols = pipe, []
+            if variant == "IRIS":
+                res = qucomm_parallel_schedule(
+                    pipe, init_ch, min_comm_value=args.min_comm, max_comm_value=args.max_comm,
+                    link_epr_capacity=link_cap, debug=False,
+                )
+                validate_locations(res, initial)
+                viols = verify_pipeline(res, init_ch, args.min_comm, args.max_comm, link_cap)
         except Exception as exc:
-            print(f"  FAIL {arch}/{mapper}/{bench}: {type(exc).__name__}: {exc}")
+            print(f"  FAIL {label}: {type(exc).__name__}: {exc}")
             fail += 1
             if args.stop_on_fail:
                 return 1
             continue
-        viols = verify_pipeline(res, init_ch, args.min_comm, args.max_comm, link_cap)
         if viols:
-            print(f"  FAIL {arch}/{mapper}/{bench} ({len(res)} ops): {len(viols)} violations")
+            print(f"  FAIL {label} ({len(res)} ops): {len(viols)} violations")
             for v in viols[:5]:
                 print(f"      - {v}")
             fail += 1
             if args.stop_on_fail:
                 return 1
         else:
-            print(f"  OK   {arch}/{mapper}/{bench} ({len(res)} ops, link_cap={link_cap})")
+            print(f"  OK   {label} ({len(res)} ops, link_cap={link_cap})")
             ok += 1
 
     print(f"\nSUMMARY: {ok} OK, {fail} FAIL (out of {ok + fail})")
