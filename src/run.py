@@ -1,4 +1,5 @@
 """Some additional info:"""
+from collections import defaultdict
 import argparse
 import json
 import os
@@ -64,6 +65,25 @@ def mapping_cache_matches_config(cache_data, args):
     if cached_tol is None:
         return False
     return abs(float(cached_tol) - float(args.oee_tol)) < 1e-12
+
+def cached_layers_match_program(mapping, layers, program):
+    # Independent gates may move between layers. The directed gate sequence on
+    # each wire must still match the parsed program under the cached placement.
+    def gates_by_wire(gates):
+        traces = defaultdict(list)
+        for control, target in gates:
+            gate = (control, target)
+            traces[control].append(gate)
+            traces[target].append(gate)
+        return traces
+
+    if len(set(mapping.values())) != len(mapping):
+        return False
+    try:
+        expected = gates_by_wire((mapping[str(a)], mapping[str(b)]) for a, b in program)
+    except KeyError:
+        return False
+    return expected == gates_by_wire(gate for layer in layers for gate in layer)
 
 def _env_flag(name, default=False):
     raw = os.environ.get(name)
@@ -171,7 +191,12 @@ os.makedirs(mapping_cache_dir, exist_ok=True)
 os.makedirs(routing_output_dir, exist_ok=True)
 _routing_peak_traced_bytes = None
 from mapper import Mapper
-if os.path.exists(f'{mapping_cache_dir}/mapping.json') and os.path.exists(f'{mapping_cache_dir}/layers.json') and os.path.exists(f'{mapping_cache_dir}/compile_time.json'):
+reuse_mapping = False
+cache_files_present = [os.path.exists(f'{mapping_cache_dir}/{name}.json')
+                       for name in ('mapping', 'layers', 'compile_time')]
+# A partial flat cache can also contain stale mapping/layers after an interrupted run.
+refresh_cache_dir = mapping_cache_dir if program_parser.has_multiple_qregs and any(cache_files_present) else None
+if all(cache_files_present):
     with open(f'{mapping_cache_dir}/compile_time.json', 'r') as f:
         data = json.load(f)
     if mapping_cache_matches_config(data, args):
@@ -179,16 +204,18 @@ if os.path.exists(f'{mapping_cache_dir}/mapping.json') and os.path.exists(f'{map
             qubit_mapping = json.load(f)
         with open(f'{mapping_cache_dir}/layers.json', 'r') as f:
             layers = json.load(f)
-        args.compile_time_mapper = data['preprocessing_time'] + data['k_partitioning_time'] + data['chip_selection_time'] + data['remap_time']
-        args.mapping_cost = data['cost']
+        reuse_mapping = not program_parser.has_multiple_qregs or cached_layers_match_program(
+            qubit_mapping, layers, program_parser())
+        if not reuse_mapping:
+            print('[INFO] Cached layers disagree with circuit-wide qubit indices. Recompiling mapping.')
     else:
         print('[INFO] Mapping cache exists but OEE config differs. Recompiling mapping.')
-        mapper = Mapper(args, hardware, program_parser())
-        (qubit_mapping, layers) = mapper.compile()
-        args.mapping_cost = mapper.cost
+if reuse_mapping:
+    args.compile_time_mapper = data['preprocessing_time'] + data['k_partitioning_time'] + data['chip_selection_time'] + data['remap_time']
+    args.mapping_cost = data['cost']
 else:
     mapper = Mapper(args, hardware, program_parser())
-    (qubit_mapping, layers) = mapper.compile()
+    (qubit_mapping, layers) = mapper.compile(refresh_cache_dir=refresh_cache_dir)
     args.mapping_cost = mapper.cost
 from router import IRISRouter
 router = IRISRouter(args, qubit_mapping, hardware.qubit_idx_to_physical_idx)
