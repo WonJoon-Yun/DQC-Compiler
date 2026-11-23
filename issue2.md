@@ -14,9 +14,9 @@ The reported CZ omission is reproducible at the published revision `896e8da`. In
   - **b. Validate each released source.** All 51 QASMs agreed with the reference on one-qubit instruction counts and directed CX order on every wire. The generated circuits also passed an ordered QPY write/read comparison including parameters and operands. All 68,055 additional CXs came from CP in the five QFT circuits. The other 46 CX counts were unchanged. One-qubit instruction counts, including existing one-wire directives and measurements, rose from 844,245 to 1,120,428. Full matrix comparisons were performed on the small gate fixtures. [Per-circuit report](revision/issue2-parser-dataset.tsv)
   - **c. Test the released caches.** The released QFT120 cache has 7,320 interactions and fails the comparison to the corrected 14,460-CX trace. The BV120 control matches at 119. The check allows reordering of gates on disjoint wires and keeps the existing declaration-only loader-stub behavior. [Cache regressions](tests/test_two_qubit_cache.py)
 
-- [ ] **Item 3. Establish the QFT cost convention before updating distributed results.**
+- [ ] **Item 3. Measure distributed results on the selected QFT input.**
   - **a. Quantify literal zero angles.** The five released QFT inputs contain 39,970 literal `cp(0)` operations. Level-zero lowering leaves two CXs per occurrence. The comparison run removes only those zero-angle operations before the same basis translation. The smallest positive angle in these QFT inputs is π/2⁴¹. [Released inputs](https://zenodo.org/records/22152933)
-  - **b. Select and record the input for a scheduling experiment.** The default used here preserves the source instructions. The sensitivity comparison below gives the counts for both conventions.
+  - **b. Select the primary input.** Use the released QASM and preserve every instruction in the primary comparison. Removing only literal `cp(0)` is the sensitivity comparison. For QFT180 these inputs yield 32,490 and 13,308 logical CXs respectively.
   - **c. Measure physical outcomes on the selected input.** Distributed `num_local_cnots`, remote CNOTs, movement and execution time require a new schedule. Those measurements and paper aggregates remain open. Eight Figure 16 entries have declaration-only loaders in place of source QASM and are outside the 51-circuit audit.
 
 | Input | Published modeled interactions | Native CX | Literal CP(0) | CX after removing literal CP(0) |
@@ -28,7 +28,12 @@ The reported CZ omission is reproducible at the published revision `896e8da`. In
 | QFT240 | 29,040 | 57,720 | 19,701 | 18,318 |
 | All 51 released sources | 636,422 | 704,477 | 39,970 | 624,537 |
 
-## Reproduce the parser-stage checks
+- [x] **Item 4. Compare parser CXs with the single-chip scheduler counter.**
+  - **a. Run the compiler on each fixture.** Use one chip with three compute qubits, a fresh trivial mapping and IRIS4. All 24 standard gate names compiled. Across the 46 standalone cases with a nonempty CX stream, the reference and parser each counted 94 CXs. The completed schedule contained the same directed CNOTs in the same order for every case. The per-run `num_local_cnots` agreed in all 46 cases and summed to 94. Both teleportation counters stayed at zero. [Single-chip results](revision/issue2-single-chip.tsv)
+  - **b. Compare representative costs.** CZ yielded 1 local CNOT, CP(π/4) and CP(0) each yielded 2, SWAP yielded 3 and externally decomposed CSWAP yielded 8. The exported ECR definition yielded 4 and the bare ECR spelling yielded 1.
+  - **c. Check the limits of the measurement.** The mapper rejected four standalone fixtures with empty CX streams. Each yielded 1 local CNOT after appending a primitive CX, matching the measured 1-CNOT control. Their measured increments were all zero. The standalone counters are blank in the table. The CLI rejected raw CCX, raw CSWAP and an opaque operation before producing a schedule. [Reproduction script](revision/issue2_single_chip.py)
+
+## Reproduce
 
 Run from the repository root in the pinned `iris-ae` environment. The last command expects the released dataset in a sibling directory and writes the reconstructed QPY files and comparison table under `results/`.
 
@@ -36,6 +41,7 @@ Run from the repository root in the pinned `iris-ae` environment. The last comma
 python tests/test_parser.py ParserTests.test_reported_cz_between_two_cx_gates
 python tests/test_two_qubit_cache.py
 python revision/issue2_gate_audit.py
+python revision/issue2_single_chip.py
 python revision/issue2_parse_dataset.py --inputs ../IRIS-dataset/bench \
   --output results/issue2/native --report results/issue2/circuits.tsv
 ```
