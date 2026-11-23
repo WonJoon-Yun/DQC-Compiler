@@ -1,0 +1,10 @@
+variant	benchmark_arch	source	directed_gates	before_rows	after_rows	before_inconsistent_rows	after_inconsistent_rows	before_state	after_state	before_gate_teleportations	after_gate_teleportations	before_teff	after_teff	before_raw_ms	after_raw_ms	before_release_count	after_release_count
+IRIS	bv_n120-S40C5-2x2	Zenodo 22152933	119	179	180	1	0	60	61	0	0	60.00	61.00	86.05484	87.37884	0	0
+IRIS	bv_n240-S40C5-3x3	Zenodo 22152933	239	501	497	3	0	262	258	0	0	262.00	258.00	307.45804	288.02096	0	0
+IRIS	qaoa_3reg_n32-S40C5-2x2	fresh 896e8da	96	118	118	2	0	22	22	0	0	22.00	22.00	27.72460	27.72460	0	0
+IRIS-noEES	bv_n120-S40C5-2x2	Zenodo 22152933	119	179	180	1	0	60	61	0	0	60.00	61.00	115.18284	116.50684	0	0
+IRIS-noEES	qaoa_3reg_n32-S40C5-2x2	fresh 896e8da	96	118	118	2	0	22	22	0	0	22.00	22.00	57.96256	57.96256	0	0
+QuComm	bv_n120-S40C5-2x2	Zenodo 22152933	119	192	192	0	0	73	73	0	0	73.00	73.00	132.39484	132.39484	0	0
+QuComm	qaoa_3reg_n350-S40C3-3x4	Zenodo 22152933	1050	1618	1619	1	0	568	569	0	0	568.00	569.00	486.00816	487.33216	1	1
+QuComm	qft_n180-S42C5-2x3	Zenodo 22152933	16380	20354	20358	4	0	3974	3978	0	0	3974.00	3978.00	3369.58892	3394.49980	4	4
+QuComm	vqe_n180-S42C5-2x3	Zenodo 22152933	16240	18238	18239	1	0	1998	1999	0	0	1998.00	1999.00	2115.18952	2115.18952	1	1
