@@ -38,7 +38,7 @@ def _compute_evict_benefit(nb, pq, q, partner, ch, position_table, ii, gcache):
             evict_benefit = min(evict_benefit, d_after - d_before)
     return evict_benefit
 
-def _try_greedy_with_evict(gate_idx, q, pq, goal_pos, partner, future_gates, connectivity, channel_dict, position_table, qubit_positions, atom_paths, active_qubits, evict_cooldown, move_round, ii, gcache, num_relocates, gate_relocates, num_epr_release, op_log, gate_timeline, PRINT_DEBUG):
+def _try_greedy_with_evict(gate_idx, q, pq, goal_pos, partner, future_gates, connectivity, channel_dict, position_table, qubit_positions, atom_paths, active_qubits, evict_cooldown, move_round, ii, gcache, num_relocates, gate_relocates, num_epr_release, op_log, gate_timeline, position_timeline, PRINT_DEBUG):
     (scored, d0) = _score_greedy_neighbors(q, pq, goal_pos, partner, connectivity, channel_dict, position_table, ii, gcache)
     if not scored:
         return None
@@ -53,7 +53,10 @@ def _try_greedy_with_evict(gate_idx, q, pq, goal_pos, partner, future_gates, con
         if victim is not None:
             ch_after_evict = channel_snapshot(channel_dict)
             _assert_channel_delta_for_move(ch_before_evict, ch_after_evict, hops=1, cap_consumed=True, context=f'gate {gate_idx} EVICT q{victim}')
-            op_log.append({'gate_idx': gate_idx, 'op_type': 'EVICT', 'qubit': victim, 'from': hop, 'to': pq, 'path': [hop, pq], 'hops': 1, 'cost_model': '1h local-evict', 'cap_consumed': True})
+            op_log.append({'gate_idx': gate_idx, 'op_type': 'EVICT', 'time': len(gate_timeline), 'qubit': victim, 'from': hop, 'to': pq, 'path': [hop, pq], 'hops': 1, 'cost_model': '1h local-evict', 'cap_consumed': True})
+            # The next hop consumes the slot freed by this eviction.
+            gate_timeline.append([])
+            position_timeline.append(dict(qubit_positions))
             num_epr_release += 1
             gate_relocates += 1
     if link_capacity(pq, hop, channel_dict) <= 0:
@@ -84,7 +87,7 @@ def _resolve_no_path(gate_idx, s, t, future_gates, dyn_agg, connectivity, channe
     candidates_fb = [(s, pos_s, pos_t, t), (t, pos_t, pos_s, s)]
     candidates_fb.sort(key=lambda x: (_safe_sp_len(gcache, x[1], x[2]), _node_sort_key(x[2]), _node_sort_key(x[1]), x[0]))
     for (q, pq, goal_pos, partner) in candidates_fb:
-        result = _try_greedy_with_evict(gate_idx, q, pq, goal_pos, partner, future_gates, connectivity, channel_dict, position_table, qubit_positions, atom_paths, active_qubits, evict_cooldown, move_round, ii, gcache, num_relocates, gate_relocates, num_epr_release, op_log, gate_timeline, PRINT_DEBUG)
+        result = _try_greedy_with_evict(gate_idx, q, pq, goal_pos, partner, future_gates, connectivity, channel_dict, position_table, qubit_positions, atom_paths, active_qubits, evict_cooldown, move_round, ii, gcache, num_relocates, gate_relocates, num_epr_release, op_log, gate_timeline, position_timeline, PRINT_DEBUG)
         if result is not None:
             return (True, result['num_relocates'], result['gate_relocates'], result['num_epr_release'])
     result = _try_fallback(gate_idx, s, t, qubit_positions, dyn_agg, connectivity, channel_dict, position_table, atom_paths, gcache, num_relocates, gate_relocates, op_log, gate_timeline, PRINT_DEBUG)

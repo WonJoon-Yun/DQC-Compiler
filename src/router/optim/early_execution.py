@@ -394,7 +394,15 @@ def pipeline_optimization(pipeline: List[Row],
                 moving_qubits.append(r['TIdx'])
             if not moving_qubits:
                 continue
-            q = moving_qubits[0]; lu = last_use_before(uses, q, t0); t_earliest = max(t_min, lu + 1) if lu != -10**9 else t_min; best_t = t0; deltas = row_channel_deltas(r); searched_any = False
+            q = moving_qubits[0]
+            lu = last_use_before(uses, q, t0)
+            if 'evicted_atom' in r:
+                # This hop needs the channel slot released by another atom.
+                lu = max(lu, last_use_before(uses, r['evicted_atom'], t0))
+            t_earliest = t_min if lu == -10**9 else max(t_min, lu + 1)
+            best_t = t0
+            deltas = row_channel_deltas(r)
+            searched_any = False
             for t_try in range(t0 - 1, t_earliest - 1, -1):
                 searched_any = True
                 trial_reasons = []

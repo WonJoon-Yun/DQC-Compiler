@@ -29,6 +29,10 @@ class LookaheadMixin:
                     if tpos != tposnext and (tidx, tpos, tposnext, block_id) not in move_scheduled:
                         LookaheadIR[tidx, tidx] = {'SIdx': tidx, 'TIdx': tidx, 'SPos': tpos, 'TPos': tpos, 'OptSPos': tposnext, 'OptTPos': tposnext, 'BeforeOperationSourcePath': [tpos, tposnext], 'BeforeOperationTargetPath': [], 'AfterOperationSourcePath': [], 'AfterOperationTargetPath': [], 'UniqueID': f'{self.TIME + t + 1}_{block_id}_{sidx}_{tidx}_{uuid4().hex}', 'NextOperation': True, 'Cops': self.args.time_int_SWAP}
                         move_scheduled.add((tidx, tpos, tposnext, block_id))
+                    evicted_atom = getattr(g, 'evicted_atom', None)
+                    if evicted_atom is not None and pd.notna(evicted_atom):
+                        mover = sidx if spos != sposnext else tidx
+                        LookaheadIR[mover, mover]['evicted_atom'] = int(evicted_atom)
             LookaheadIRs.append(LookaheadIR)
         self.TIME += TMAX
         return LookaheadIRs

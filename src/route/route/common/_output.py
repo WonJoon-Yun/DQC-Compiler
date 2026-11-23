@@ -11,13 +11,23 @@ def _sync_active_positions(position_table, qubit_positions, active_qubits):
     for q in active_qubits:
         position_table[q] = qubit_positions[q]
 
-def _build_detailed_rows(gates, position_timeline, gate_timeline, block_id):
+def _build_detailed_rows(gates, position_timeline, gate_timeline, block_id, evictions=None):
     detailed_rows = []
     qubit_paths = defaultdict(list)
     qubit_gates = defaultdict(list)
+    evictions = evictions or {}
     for t_idx in range(len(position_timeline) - 1):
         pos = position_timeline[t_idx]
         nextpos = position_timeline[t_idx + 1]
+        eviction = evictions.get(t_idx)
+        if eviction is not None and eviction['qubit'] not in pos:
+            # Only gate operands appear in position snapshots. Emit the actual
+            # logged hop for a spectator using the existing single-move row.
+            q, src, dst = eviction['qubit'], eviction['from'], eviction['to']
+            detailed_rows.append({'BlockID': block_id, 'Time': t_idx,
+                                  'SIdx': q, 'SPos': src, 'SNextPos': dst,
+                                  'TIdx': q, 'TPos': src, 'TNextPos': src, 'CNOT': False})
+        preceding_eviction = evictions.get(t_idx - 1)
         exec_gate_indices = {item for item in gate_timeline[t_idx] if isinstance(item, int)}
         for (gi, (s_, t_)) in enumerate(gates):
             if t_ not in qubit_gates[s_]:
@@ -28,7 +38,10 @@ def _build_detailed_rows(gates, position_timeline, gate_timeline, block_id):
                 qubit_paths[s_].append(pos[s_])
             if not qubit_paths[t_] or qubit_paths[t_][-1] != pos[t_]:
                 qubit_paths[t_].append(pos[t_])
-            detailed_rows.append({'BlockID': block_id, 'Time': t_idx, 'SIdx': s_, 'SPos': pos[s_], 'SNextPos': nextpos[s_], 'TIdx': t_, 'TPos': pos[t_], 'TNextPos': nextpos[t_], 'CNOT': gi in exec_gate_indices})
+            row = {'BlockID': block_id, 'Time': t_idx, 'SIdx': s_, 'SPos': pos[s_], 'SNextPos': nextpos[s_], 'TIdx': t_, 'TPos': pos[t_], 'TNextPos': nextpos[t_], 'CNOT': gi in exec_gate_indices}
+            if preceding_eviction is not None and (pos[s_] != nextpos[s_] or pos[t_] != nextpos[t_]):
+                row['evicted_atom'] = preceding_eviction['qubit']
+            detailed_rows.append(row)
     return (detailed_rows, qubit_paths, qubit_gates)
 
 def _compute_stats(detailed_rows, qubit_paths, qubit_gates, recnot_flags):
@@ -43,7 +56,8 @@ def _compute_stats(detailed_rows, qubit_paths, qubit_gates, recnot_flags):
 
 def _build_output(algo_name, gates, active_qubits, qubit_positions, position_timeline, gate_timeline, block_id, recnot_flags, relocates_per_gate, num_relocates, num_epr_release, num_return_relocates, atom_paths, channel_dict, op_log, ii, interact_info, all_released_qubits, connectivity, initial_position_table, final_position_table, initial_channel_dict, initial_atom_paths, final_atom_paths, PRINT_DEBUG):
     _finalize_timeline(qubit_positions, active_qubits, position_timeline, gate_timeline)
-    (detailed_rows, qubit_paths, qubit_gates) = _build_detailed_rows(gates, position_timeline, gate_timeline, block_id)
+    evictions = {op['time']: op for op in op_log if op['op_type'] == 'EVICT'}
+    (detailed_rows, qubit_paths, qubit_gates) = _build_detailed_rows(gates, position_timeline, gate_timeline, block_id, evictions)
     (num_relocate_cnot_ops, num_recnot_ops, num_recnots) = _compute_stats(detailed_rows, qubit_paths, qubit_gates, recnot_flags)
     assert_channel_invariant(channel_dict, context='FINAL')
     _assert_op_log_consistency(op_log)

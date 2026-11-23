@@ -136,6 +136,11 @@ class ExecutableMixin:
                         deps.append(last_by_atom[atom0])
                     if atom1 in last_by_atom:
                         deps.append(last_by_atom[atom1])
+                    # A flat-pool relocation can require another atom to release a slot.
+                    for required_atom in gate[6:]:
+                        predecessor = last_by_atom.get(required_atom)
+                        if predecessor is not None and predecessor not in barrier_deps:
+                            deps.append(predecessor)
                     deps.extend(barrier_deps)
                     try:
                         layer_id_for_exe = uid.split('_')[1]
