@@ -50,6 +50,13 @@ class LocationReplayTest(unittest.TestCase):
         self.assertEqual(run.returncode, 1)
         self.assertIn("atom 0", run.stdout)
 
+    def test_qucomm_raw_rejects_a_move_that_spends_the_last_slot(self):
+        left, right = (0, 0), (1, 0)
+        run = self.verify([op("RELOCATE", (0, 0), (left, right), 0, 0)],
+                          variant="QuComm")
+        self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+        self.assertIn("directional channel", run.stdout)
+
     def test_explicit_relocation_and_remote_gate(self):
         left, right = (0, 0), (1, 0)
         run = self.verify([op("Re-CNOT", (1, 2), (left, right), 0, 0),

@@ -35,4 +35,7 @@ class LookaheadMixin:
                         LookaheadIR[mover, mover]['evicted_atom'] = int(evicted_atom)
             LookaheadIRs.append(LookaheadIR)
         self.TIME += TMAX
+        if getattr(self, '_channel_aware_blocks', False) and getattr(self.args, 'schedule_merge_layers', False):
+            # Flattening IR groups must keep the next group's tick zero after this one.
+            self.TIME += 1
         return LookaheadIRs

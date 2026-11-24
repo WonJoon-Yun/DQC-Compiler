@@ -16,6 +16,7 @@ from ._constants import _normalize_channels_struct_only
 from ._dag import BuildBlockDAG
 from ._utils import _qucomm_window_lookahead_depth, routing_method
 from ._validation import get_agg_node
+from .scheduling.channel_merge import ChannelAwareBlockMerger
 
 def _slim_atom_paths(atom_paths):
     """Return {qubit: [current_pos]} — just the tip of each path."""
@@ -229,7 +230,7 @@ class IRISRouter(BaselineRouter):
         for (atom, pos) in self.position_table.items():
             atom_paths[int(atom)].append(pos)
         enable_ees = bool(getattr(self.args, 'enable_ees', False))
-        schedules = []
+        self._channel_aware_blocks = not enable_ees
         ees_pipeline = []
         ees_epochs = []
         ees_duplicated = set()
@@ -240,6 +241,8 @@ class IRISRouter(BaselineRouter):
         channel_dict = self._build_initial_channel_dict()
         self.pre_schedule_chip_data_qubit_counts = {tuple(node): int(count) for (node, count) in sorted(Counter(self.position_table.values()).items(), key=lambda item: str(item[0]))}
         initial_channel_dict = dict(channel_dict)
+        if self._channel_aware_blocks:
+            block_merger = ChannelAwareBlockMerger(initial_channel_dict)
         cnt = 0
         gate_cnt = 0
         block_id_cnt = 0
@@ -326,7 +329,12 @@ class IRISRouter(BaselineRouter):
                             ees_current_segment_max_time = seg_max_time
                             ees_prev_segment_atoms = curr_atoms
                 ees_epochs.append({'initial_channel_dict': segment_start_channel_dict, 'schedules': [list(seg) for seg in after_schedule]})
-            schedules = self._merge_schedule_segments(schedules, after_schedule)
+            else:
+                # The original merger kept the first K1 window's blocks in
+                # separate groups. Preserve that boundary for multi-block windows.
+                allow_overlap = bool(block_merger.groups)
+                for segment in after_schedule:
+                    block_merger.append(segment, allow_overlap=allow_overlap)
             for (block_id, per_block_metric) in zip(plan.done_ids, plan.per_block_metrics):
                 self._record_plan_block_metric(block_id, per_block_metric)
             round_num += 1
@@ -356,6 +364,7 @@ class IRISRouter(BaselineRouter):
                 self.IRLayers.append(self.GetQuCommLookaheadIR(p, verbose=verbose, cnt=cnt))
                 cnt += 1
         else:
+            schedules = block_merger.groups
             cnt = 0
             self.IRLayers = []
             for schedule in schedules:

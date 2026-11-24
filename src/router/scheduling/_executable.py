@@ -53,6 +53,10 @@ class ExecutableMixin:
         payload = {'format_version': 1, 'k_suffix': k_suffix, 'scheduler_policy': convert_ndarray_to_list(getattr(self, 'schedule_replay_policy', {})), 'args_snapshot': convert_ndarray_to_list(args_snapshot) if args_snapshot is not None else None, 'results_snapshot': _compact_results_snapshot(results_snapshot), 'ops': convert_ndarray_to_list(records)}
         if self.position_table is not None:
             payload["initial_atom_positions"] = {str(q): list(pos) for q, pos in self.position_table.items()}
+        if getattr(self, '_channel_aware_blocks', False):
+            payload["initial_directional_channels"] = [
+                [src, dst, balance] for (src, dst), balance in sorted(self.pre_schedule_channel_dict.items())
+            ]
         atomic_json_dump(payload, output_path, indent=1)
         return str(output_path)
 
@@ -60,6 +64,7 @@ class ExecutableMixin:
         """Build and run a latency-friendly scheduler:"""
         MERGE_LAYERS = getattr(self.args, 'schedule_merge_layers', False)
         BARRIER_BY_TIME = getattr(self.args, 'schedule_barrier_by_time', True)
+        keep_channel_order = getattr(self, '_channel_aware_blocks', False) and not BARRIER_BY_TIME
         SERIALIZE_WITHIN_BUCKET = getattr(self.args, 'schedule_serialize_within_bucket', False)
         CAP_CHANNELS = getattr(self.args, 'schedule_cap_channels', False)
         MAX_CHANNEL_PER_EDGE = getattr(self.args, 'max_parallel_per_link', None) or getattr(self.args, 'num_communication_qubits', 1)
@@ -116,6 +121,7 @@ class ExecutableMixin:
                     seen_ids.add(uid)
             executables = []
             last_by_atom = {}
+            last_by_link = {}
             last_time_bucket_ops = []
             for time_idx in sorted(groups_by_time.keys()):
                 gates_list = groups_by_time[time_idx]
@@ -123,6 +129,7 @@ class ExecutableMixin:
                 prev_in_bucket = None
                 barrier_deps = list(last_time_bucket_ops) if BARRIER_BY_TIME else []
                 current_bucket_ops = []
+                current_by_link = defaultdict(list)
                 for gate in sorted_gates:
                     uid = gate[5]
                     (atom0, atom1) = gate[4]
@@ -141,6 +148,11 @@ class ExecutableMixin:
                         predecessor = last_by_atom.get(required_atom)
                         if predecessor is not None and predecessor not in barrier_deps:
                             deps.append(predecessor)
+                    # Later ticks may spend credits returned by this link's
+                    # preceding tick. Hops admitted in the same tick may overlap.
+                    link = _edge_key(op, pos0, pos1) if keep_channel_order and pos0 != pos1 else None
+                    if link is not None:
+                        deps.extend(last_by_link.get(link, ()))
                     deps.extend(barrier_deps)
                     try:
                         layer_id_for_exe = uid.split('_')[1]
@@ -149,11 +161,14 @@ class ExecutableMixin:
                     exe = Executable(uid, layer_id_for_exe, atom0, atom1, pos0, pos1, op, deps, dur, False)
                     executables.append(exe)
                     current_bucket_ops.append(exe)
+                    if link is not None:
+                        current_by_link[link].append(exe)
                     self._register_schedule_replay_executable(exe, schedule_layer_idx, time_idx)
                     prev_in_bucket = exe
                     last_by_atom[atom0] = exe
                     last_by_atom[atom1] = exe
                 last_time_bucket_ops = current_bucket_ops
+                last_by_link.update(current_by_link)
             not_started = list(executables)
             running = []
             done = []
