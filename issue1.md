@@ -19,15 +19,16 @@ At `896e8da`, the reported IRIS and QuComm schedules contain operations that use
   - **b.** Test inactive and active victims, two consecutive evictions, and a free-link control. Check exactly one relocation per physical hop and order the next hop that needs the released slot after the eviction. The minimal saturated case emits three state teleports, including the eviction.
   - **c.** Apply the published metric `T_eff = state_teleportations + 1.77 × gate_teleportations`. Charging the eviction as a state teleport accounts for the physical hop. Adding the release counter again would charge it twice. QuComm QFT180 changes from 3,974 to 3,978 state teleports, VQE180 from 1,998 to 1,999, and the BV120 control stays at 73. [Eviction regressions](tests/test_eviction_schedule.py) · [Metric definition](data_generator/_lib.py)
 
-- [ ] **Item 4. Enforce directional channel capacity during cross-block overlap.**
-  - **a.** Replay the published and revised QuComm QFT180 schedules. At 662.64048 ms, direction `(0,1) → (0,2)` reaches `5 + 27 − 33 = −1` after grouping all hops with the same completion time. No operation spans this boundary. The QuComm BV120 control stays nonnegative.
-  - **b.** Inspect the first 75 merged groups. Disjoint atom sets can share a directional channel. For recorded blocks 115–116, a two-tick delay gives a minimum post-debit balance of 1. The control pair 187–188 accepts zero delay. Both pairs retain five hops and nine CNOTs. [Recorded merge trace](revision/issue1-qft180-merge.json) · [Offline admission experiment](revision/issue1_qft180_admission.py)
-  - **c.** Pending. Apply the admission check in the production block merger and validate all QFT180 blocks, including minimum balance and the resulting latency. Current QFT180 timings cannot establish a physically admissible execution.
+- [x] **Item 4. Reserve directional channels when overlapping blocks or advancing moves.**
+  - **a. QuComm.** In QFT180, routing blocks 340, 344, 345 and 346 in order returns two slots before consuming them. The parallel merger saw disjoint atoms and scheduled the two consumers first. The completed balance on `(0,1) → (0,2)` fell from 1 to −1 at 662.64048 ms with no move in flight. Across the full schedule the interval minimum was −2. Shor120 isolates the same constraint from atom placement. Its 15,309 archived operations pass location replay. The paired baseline reproduces every timestamp and dependency, with minimum −1. The correction raises the minimum to +1 while retaining all 1,751 moves, 13,558 local CNOTs and 3,084 block-end channel snapshots. The merger now replays debits at start and credits at finish for the entire candidate group. It delays block 116 by two ticks relative to block 115 and keeps the legal overlap of 187 and 188. [Recorded witness](revision/issue1-qft180-merge.json) · [Merger regressions](tests/test_qucomm_channel_merge.py) · [Paired QuComm results](revision/issue1-channel-reroutes.tsv)
+  - **b. IRIS early execution.** All 33 BV240 routing epochs entered EES with at least one slot in every direction. Only epoch 24 became invalid. EES moved four hops from ticks 0, 3, 11 and 19 to tick 0. Its end-of-tick check saw a net change of zero. At the start, two consumers took two slots from an opening balance of one. The retimer now checks the proposed start and every intervening tick. Atoms 84 and 125 return slots at the end of tick 0. Atoms 47 and 48 use them at tick 3. BV240 retains all 239 CNOTs and 258 moves. Its raw latency increases from 288.02096 to 289.04460 ms and its postprocessed latency from 279.84392 to 280.86756 ms. Both minima improve from −1 to +1. BV120 and QAOA32 retain their raw and postprocessed timings. [EES regressions](tests/test_ees_directional.py) · [Paired EES results](revision/issue1-ees-channel-reroutes.tsv)
+  - **c. Postprocessing.** A separate two-block example starts with one slot in the direction that the second hop needs. Its original two cycles are feasible. The legacy postprocessor reports one cycle by borrowing the first hop’s return at the start of that same cycle. Strict replay keeps the two verified cycles and records why it rejected the candidate. With three starting slots, the one-cycle schedule passes. The historical replay option retains the archived timing and records the violation. The verifier, timing script and Figure 14 use the same result selection. [Postprocessing regressions](tests/test_postprocess_channels.py)
+  - **d. Coverage.** Replay each scored schedule from its initial atom positions and directional balances. Check every operation interval, each atom’s ordered gates and hops, the recorded closing state, and each postprocessed cycle. QuComm BV120 retains every operation time. IRIS-noEES BV120 and QAOA32 retain minima of 1 and 3 and raw times of 116.50684 and 57.96256 ms. A second planning-window size (`K1=2`) passes QuComm BV120, QuComm QAOA-3reg350, IRIS BV120 and IRIS QAOA32. [Independent interval verifier](src/analysis/schedule_locations.py)
 
-- [ ] **Item 5. Determine the scope of any benchmark or paper revisions.**
-  - **a.** Nine representative before/after pairs have been checked, including six of the 72 main configurations. Every pair uses the same mapping and gate layers on both sides. All nine revised schedules pass location replay. The representative table records raw timings before postprocessing. [Paired measurements](revision/issue1-representatives.tsv)
-  - **b.** Pending. Recompile the other 66 main configurations after resolving channel capacity and agreeing on the parser input. The QFT180 routing comparison here used the archived 16,380-interaction input. Parser work for issue #2 gives 32,490 CX with unoptimized basis lowering. The measured routing times here apply to the former input. [Parser issue](https://github.com/WonJoon-Yun/DQC-Compiler/issues/2)
-  - **c.** Pending. Recompute aggregates, rankings and affected figures from validated schedules. Other mapping methods and hardware models also need separate coverage before generalizing the results.
+- [ ] **Item 5. Determine the scope of benchmark and paper revisions.**
+  - **a.** Ten representative configurations now pass the channel and location checks (five QuComm, three IRIS and two IRIS-noEES). Seven belong to the main suite. The earlier table reports nine configurations. The channel tables above use the location-repaired compiler (`e3e2c86`) as their baseline. The timing columns in the earlier table measure the location repair alone. [Location-repair results](revision/issue1-representatives.tsv)
+  - **b.** Replaying the 72 archived main schedules finds 52 with negative directional balances, 10 that exhaust the last slot, and 10 that remain positive. Counts of negative, zero and positive minima are 12/6/6 for QuComm, 20/2/2 for IRIS-noEES and 20/2/2 for IRIS. Each of the 52 negative cases also reaches a negative completed-move balance. Archived operation logs include the original location errors and omitted moves. Attributing an individual failure requires a matched reroute. [Archived per-schedule results](revision/issue1-archive-channels.tsv)
+  - **c.** Pending. Reroute the remaining 65 main configurations and recompute the paper’s aggregates, rankings and figures from validated outputs. The paired QFT180 routing result here uses the archived 16,380-CX workload to isolate scheduling. On the corrected parser, the primary comparison will use the original distributed QASM lowered to 32,490 CX. Removing exactly zero-angle controlled phases gives the separate sensitivity comparison. The next single routing control is IRIS-noEES QFT120 on the archived mapping and layers. Its published minimum is −15. Compare its raw interval minimum, exact directed gate sequence and per-block channel snapshots before expanding the run. Other mappers and hardware models need separate validation. [Parser issue](https://github.com/WonJoon-Yun/DQC-Compiler/issues/2)
 
 ## Reproduce
 
@@ -35,6 +36,8 @@ From the repository root in the artifact environment, point the commands at the 
 
 ```sh
 python revision/issue1_replay_archive.py ../IRIS-dataset
+python revision/issue1_archive_channels.py ../IRIS-dataset > archive-channels.tsv
+diff -u revision/issue1-archive-channels.tsv archive-channels.tsv
 python -m unittest discover -s tests -p 'test_*.py'
 python tests/test_ees_postcondition.py
 python revision/issue1_channel_witness.py ../IRIS-dataset/MinCut/QuComm/qft_n180-S42C5-2x3
@@ -45,4 +48,17 @@ To see the failing diagnostic directly, run the following command. The MinCut ca
 
 ```sh
 python tests/verify_extra_opt.py --root ../IRIS-dataset --variant IRIS --arch F120 --bench bv_n120
+```
+
+To repeat the paired QuComm QFT180 measurement, populate a fresh output directory with the archived mapper inputs using the artifact’s cache importer. It restores the configuration keys that the compiler checks before reusing the mapping. The compiler regenerates every routing block and the executable schedule. Running the same commands from each revision in its own fresh output directory gives the before and after cases.
+
+```sh
+dataset=$(cd ../IRIS-dataset && pwd)
+export RESULTS_DIR=$(mktemp -d)
+export BENCH_DIR="$RESULTS_DIR/bench"
+export FIGURES_DIR="$RESULTS_DIR/figures"
+python scripts/seed_from_dataset.py --dataset "$dataset" --results "$RESULTS_DIR" \
+    --bench-dir "$BENCH_DIR" --benches qft_n180 --archs F180
+bash scripts/run_qucomm.sh qft_n180 F180 ILP
+python tests/verify_extra_opt.py --root "$RESULTS_DIR" --variant QuComm
 ```
