@@ -1,5 +1,5 @@
 import bisect
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Any, Callable, Dict, FrozenSet, List, Optional, Set, Tuple
 Pos = Tuple[int, int]
 Edge = Tuple[Pos, Pos]
@@ -275,6 +275,7 @@ def pipeline_optimization(pipeline: List[Row],
                           require_remote_at_move_time: bool = True,
                           *,
                           advance_local_cnots: bool = True,
+                          reserve_directional_slots: bool = False,
                           debug: bool = True,
                           debug_fn: Optional[Callable[[str], None]] = None,
                           progress_fn: Optional[Callable[[Dict[str, Any]], None]] = None,
@@ -305,10 +306,18 @@ def pipeline_optimization(pipeline: List[Row],
             t = r['Time']
             cnot_uses_at_time[t].add(r['SIdx'])
             cnot_uses_at_time[t].add(r['TIdx'])
+    # channel_t records the end of a tick. Its forward credits and any
+    # temporary remote-gate holds are unavailable to a move starting that tick.
+    credits_at = defaultdict(Counter)
+    gate_holds_at = defaultdict(Counter)
     rows_by_time_init: Dict[int, List[Row]] = defaultdict(list)
     for r in pipeline:
         if r['CNOT'] is False:
             rows_by_time_init[r['Time']].append(r)
+        elif reserve_directional_slots and r['SPos'] != r['TPos']:
+            src, dst = r['SPos'], r['TPos']
+            gate_holds_at[r['Time']][src, dst] += 1
+            gate_holds_at[r['Time']][dst, src] += 1
     for t in range(t_min, t_max + 1):
         if t != t_min:
             channel_t[t] = clone_channel_state(channel_t[t - 1])
@@ -323,6 +332,7 @@ def pipeline_optimization(pipeline: List[Row],
                 moves_at_time[t].add(q)
                 e_fwd = (r['SPos'], r['SNextPos'])
                 e_rev = (r['SNextPos'], r['SPos'])
+                credits_at[t][e_fwd] += 1
                 channel_t[t][e_fwd] = channel_t[t].get(e_fwd, 0) + 1
                 channel_t[t][e_rev] = channel_t[t].get(e_rev, 0) - 1
             elif r['TPos'] != r['TNextPos']:
@@ -333,6 +343,7 @@ def pipeline_optimization(pipeline: List[Row],
                 moves_at_time[t].add(q)
                 e_fwd = (r['TPos'], r['TNextPos'])
                 e_rev = (r['TNextPos'], r['TPos'])
+                credits_at[t][e_fwd] += 1
                 channel_t[t][e_fwd] = channel_t[t].get(e_fwd, 0) + 1
                 channel_t[t][e_rev] = channel_t[t].get(e_rev, 0) - 1
     max_cap = {t: {} for t in range(t_min, t_max + 1)}
@@ -347,7 +358,16 @@ def pipeline_optimization(pipeline: List[Row],
         return channel_used_cache[time]
     def can_place_at_time(r: Row, t_try: int, t0: int, reasons: List[str]) -> bool:
         deltas = row_channel_deltas(r)
+        forward, reverse = (e for e, _ in deltas)
         for tt in range(t_try, t0):
+            if reserve_directional_slots:
+                available = channel_t[tt][reverse] - credits_at[tt][reverse] - gate_holds_at[tt][reverse]
+                # An earlier debit lasts until the old tick. Check the proposed
+                # start as well as every intervening move that needs its reserve.
+                floor = int(tt == t_try or credits_at[tt][forward] > 0)
+                if available - 1 < floor:
+                    reasons.append(f"directional-reserve@{tt}")
+                    return False
             if violates_bounds(channel_t[tt], deltas, min_comm_value, max_comm_value):
                 reasons.append(f"bounds@{tt}")
                 return False
@@ -423,6 +443,9 @@ def pipeline_optimization(pipeline: List[Row],
                 apply_deltas(channel_t[tt], [(e, -dv) for e, dv in deltas])
             for tt in range(best_t, t_max + 1):
                 apply_deltas(channel_t[tt], deltas)
+            forward = deltas[0][0]
+            credits_at[t0][forward] -= 1
+            credits_at[best_t][forward] += 1
             if q in moves_at_time.get(t0, set()):
                 moves_at_time[t0].remove(q)
             moves_at_time[best_t].add(q)
@@ -498,11 +521,15 @@ def pipeline_optimization(pipeline: List[Row],
             early_executed_dict[host_block].append(orig)
     windows = build_schedule_by_block_finish(pipeline)
     log(f"[pre-merge] windows={len(windows)}")
-    windows = merge_parallel_windows(windows, max_comm_value, n_passes=5, log=log)
+    # The native router admits these chronological windows against the
+    # physical opening balances when it builds the executable groups.
+    if not reserve_directional_slots:
+        windows = merge_parallel_windows(windows, max_comm_value, n_passes=5, log=log)
     log(f"[post-merge] windows={len(windows)}")
     flat: List[Row] = [r for w in windows for r in w]
     flat.sort(key=lambda r: r['Time'])
-    violations = _verify_placed_pipeline(flat, initial_channel_dict, min_comm_value, max_comm_value)
+    violations = _verify_placed_pipeline(flat, initial_channel_dict, min_comm_value, max_comm_value,
+                                         reserve_directional_slots=reserve_directional_slots)
     if violations:
         preview = "; ".join(violations[:5])
         extra = f" (+{len(violations)-5} more)" if len(violations) > 5 else ""
@@ -516,6 +543,7 @@ def _verify_placed_pipeline(
     min_comm_value: int,
     max_comm_value: int,
     *,
+    reserve_directional_slots: bool = False,
     link_epr_capacity: Optional[int] = None,
     chip_epr_capacity: Optional[Dict[Pos, int]] = None,
 ) -> List[str]:
@@ -543,8 +571,13 @@ def _verify_placed_pipeline(
     cap_dir = max_comm_value // 2
     for t in sorted(rows_by_time):
         dir_count: Dict[Edge, int] = defaultdict(int)
+        holds = Counter()
         touched: Set[Edge] = set()
         for r in rows_by_time[t]:
+            if reserve_directional_slots and r['CNOT'] and r['SPos'] != r['TPos']:
+                src, dst = r['SPos'], r['TPos']
+                holds[src, dst] += 1
+                holds[dst, src] += 1
             deltas = row_channel_deltas(r)
             for e, dv in deltas:
                 if dv > 0:
@@ -554,8 +587,13 @@ def _verify_placed_pipeline(
         for e, cnt in dir_count.items():
             if cnt > cap_dir:
                 violations.append(f"(d)edge-cap@{t}:{e}={cnt}>{cap_dir}")
-        for e in touched:
+        for e in touched | holds.keys():
             val = channel.get(e, 0)
+            if reserve_directional_slots:
+                available = val - dir_count[e] - holds[e]
+                floor = int(dir_count[e[1], e[0]] > 0)
+                if available < floor:
+                    violations.append(f"directional-reserve@{t}:{e}={available}<{floor}")
             if val < min_comm_value:
                 violations.append(f"(c)cap-under@{t}:{e}={val}")
             if val > max_comm_value:

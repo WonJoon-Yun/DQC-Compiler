@@ -20,7 +20,10 @@ def run_ees(schedules: List[List[Row]], initial_channel_dict: Dict[Tuple, int], 
     early_executed_dict = None
     start = time.time()
     if enable_ees:
-        (opt_pipeline, early_executed_dict) = pipeline_optimization(pipeline, initial_channel_dict, 0, num_communication_qubits * 2)
+        opt_pipeline, early_executed_dict = pipeline_optimization(
+            pipeline, initial_channel_dict, 0, num_communication_qubits * 2,
+            reserve_directional_slots=True,
+        )
         if save_pipeline_json:
             atomic_json_dump(opt_pipeline, base / f'opt-{mode_tag}.json', sort_keys=True)
     elapsed = time.time() - start
