@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Replay raw atom locations for each requested variant in the IRIS-dataset layout.
 
-For QuComm and IRIS-noEES, replay directional reservations at actual start and end times.
+Replay directional reservations for all variants at actual start and end times.
 For IRIS, also run qucomm_parallel_schedule and check the resulting locations,
 per-cycle atom usage, channel bounds, directional capacity and link EPR cap.
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, FrozenSet, List, Set, Tuple
 
@@ -23,7 +23,7 @@ SRC_DIR = AE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_locations
+from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_channels, validate_locations
 from router.optim.early_execution import (  # noqa: E402
     apply_deltas, is_move_row, qucomm_parallel_schedule,
     row_channel_deltas, row_used_qubits,
@@ -44,52 +44,6 @@ def parse_link_cap(arch: str) -> int:
         return _LINK_CAP_BY_ARCH[arch]
     m = re.search(r"C(\d+)", arch)
     return int(m.group(1)) if m else 5
-
-
-def verify_raw_channels(schedule, rows):
-    """At a shared timestamp, completed hops return their slots before new reservations."""
-    events = []
-    for row in rows:
-        src = row["SPos"]
-        if row["_optype"] == "RELOCATE":
-            dst = row["SNextPos"]
-            reservations = [((dst, src), (src, dst), 1)]
-        elif row["_optype"] == "Re-CNOT":
-            dst = row["TPos"]
-            reservations = [(edge, edge, 0) for edge in ((src, dst), (dst, src))]
-        else:
-            continue
-        if row["_end"] <= row["_start"]:
-            raise ValueError(f"Invalid channel interval in block {row['BlockID']}")
-        for debit, credit, floor in reservations:
-            # At equal starts, admit permanent moves before temporary gate reservations.
-            events.append((row["_start"], 1 if floor else 2, debit, -1, debit, floor, row["BlockID"]))
-            events.append((row["_end"], 0, credit, 1, debit, -floor, row["BlockID"]))
-    if not events:
-        return
-    recorded = schedule.get("initial_directional_channels")
-    if recorded is not None:
-        balances = {(tuple(src), tuple(dst)): n for src, dst, n in recorded}
-    else:
-        # The original buffer designer passed the uniform grid channels through.
-        config = schedule["args_snapshot"]
-        nx, ny = config["numchipletsx"], config["numchipletsy"]
-        capacity = config.get("num_communication_per_link")
-        if capacity is None:
-            capacity = config["num_communication_qubits"]
-        balances = {((x, y), (x + dx, y + dy)): capacity for x in range(nx) for y in range(ny)
-                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
-                    if 0 <= x + dx < nx and 0 <= y + dy < ny}
-    in_flight_moves = Counter()
-    for time, phase, edge, delta, debit, move_delta, block in sorted(events):
-        if edge not in balances:
-            raise ValueError(f"Unknown directional channel {edge} in block {block}")
-        in_flight_moves[debit] += move_delta
-        balances[edge] += delta
-        floor = int(in_flight_moves[edge] > 0)
-        if phase and balances[edge] < floor:
-            raise ValueError(f"block {block}, time {time}: directional channel {edge} "
-                             f"has {balances[edge]} slots, requires at least {floor}")
 
 
 def verify_pipeline(pipeline, init_ch, min_v, max_v, link_cap):
@@ -216,24 +170,25 @@ def main() -> int:
     for variant, arch, mapper, bench, sched in targets:
         label = f"{variant}/{arch}/{mapper}/{bench}"
         link_cap = parse_link_cap(arch)
+        stage = "emitted"
         try:
             schedule = read_schedule(sched)
             initial = initial_locations(schedule)
-            pipe, init_ch = pipeline_rows(schedule["ops"])
+            pipe, init_ch = pipeline_rows(schedule.pop("ops"))
             validate_locations(pipe, initial, original_times=True)
-            if variant in ("QuComm", "IRIS-noEES"):
-                verify_raw_channels(schedule, pipe)
-            del schedule
+            validate_channels(pipe, schedule, original_times=True)
             res, viols = pipe, []
             if variant == "IRIS":
+                stage = "postprocessed"
                 res = qucomm_parallel_schedule(
                     pipe, init_ch, min_comm_value=args.min_comm, max_comm_value=args.max_comm,
                     link_epr_capacity=link_cap, debug=False,
                 )
                 validate_locations(res, initial)
+                validate_channels(res, schedule)
                 viols = verify_pipeline(res, init_ch, args.min_comm, args.max_comm, link_cap)
         except Exception as exc:
-            print(f"  FAIL {label}: {type(exc).__name__}: {exc}")
+            print(f"  FAIL {label} ({stage}): {type(exc).__name__}: {exc}")
             fail += 1
             if args.stop_on_fail:
                 return 1

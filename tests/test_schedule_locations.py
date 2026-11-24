@@ -16,12 +16,12 @@ def op(kind, atoms, chips, start, block):
 
 
 class LocationReplayTest(unittest.TestCase):
-    def verify(self, ops, *, compressed=False, variant="IRIS", initial=None, variants=None):
+    def verify(self, ops, *, compressed=False, variant="IRIS", initial=None, variants=None, capacity=1):
         with tempfile.TemporaryDirectory() as tmp:
-            directory = Path(tmp) / "MinCut" / variant / "fixture_n3-S3C1-2x1"
+            directory = Path(tmp) / "MinCut" / variant / f"fixture_n3-S{2 + capacity}C{capacity}-2x1"
             directory.mkdir(parents=True)
             schedule = {"ops": ops, "args_snapshot": dict(
-                system_qubits_per_chip=3, num_communication_per_link=1,
+                system_qubits_per_chip=2 + capacity, num_communication_per_link=capacity,
                 numchipletsx=2, numchipletsy=1)}
             if initial is not None:
                 schedule["initial_atom_positions"] = initial
@@ -50,18 +50,20 @@ class LocationReplayTest(unittest.TestCase):
         self.assertEqual(run.returncode, 1)
         self.assertIn("atom 0", run.stdout)
 
-    def test_qucomm_raw_rejects_a_move_that_spends_the_last_slot(self):
+    def test_raw_rejects_a_move_that_spends_the_last_slot_for_all_variants(self):
         left, right = (0, 0), (1, 0)
-        run = self.verify([op("RELOCATE", (0, 0), (left, right), 0, 0)],
-                          variant="QuComm")
-        self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
-        self.assertIn("directional channel", run.stdout)
+        for variant in ("IRIS", "IRIS-noEES", "QuComm"):
+            with self.subTest(variant=variant):
+                run = self.verify([op("RELOCATE", (0, 0), (left, right), 0, 0)], variant=variant)
+                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                self.assertIn("(emitted)", run.stdout)
+                self.assertIn("directional channel", run.stdout)
 
     def test_explicit_relocation_and_remote_gate(self):
         left, right = (0, 0), (1, 0)
         run = self.verify([op("Re-CNOT", (1, 2), (left, right), 0, 0),
                            op("RELOCATE", (0, 0), (left, right), 1, 0),
-                           op("Local CNOT", (0, 2), (right, right), 2, 1)])
+                           op("Local CNOT", (0, 2), (right, right), 2, 1)], capacity=2)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
     def test_use_while_relocation_is_in_flight(self):

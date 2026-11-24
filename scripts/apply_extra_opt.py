@@ -14,7 +14,7 @@ Output JSON fields:
     wall_time_ms_orig    -- sum of per-cycle max durations (original)
     wall_time_ms_extra   -- same metric on the extra-opt schedule
     link_epr_capacity    -- per-link EPR cap used for the optimizer
-    violations           -- first location error per replay stage in historical mode
+    violations           -- first location and channel errors per replay stage in historical mode
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ SRC_DIR = AE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_locations
+from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_channels, validate_locations
 from router.optim.early_execution import qucomm_parallel_schedule  # noqa: E402
 
 
@@ -71,25 +71,25 @@ def main():
     ap.add_argument("--out", required=True, type=Path,
                     help="Output JSON path")
     ap.add_argument("--historical-replay", action="store_true",
-                    help="Reproduce archived timing and record location errors in the output")
+                    help="Reproduce archived timing and record location and channel errors in the output")
     args = ap.parse_args()
 
     schedule = read_schedule(args.schedule)
     initial = initial_locations(schedule)
-    pipe, init_ch = pipeline_rows(schedule["ops"])
-    del schedule
+    pipe, init_ch = pipeline_rows(schedule.pop("ops"))
     violations = []
 
-    def check_locations(rows, *, original_times=False):
-        try:
-            validate_locations(rows, initial, original_times=original_times)
-        except ValueError as error:
-            if not args.historical_replay:
-                raise
-            stage = "emitted" if original_times else "postprocessed"
-            violations.append(f"{stage}: {error}")
+    def check_schedule(rows, *, original_times=False):
+        stage = "emitted" if original_times else "postprocessed"
+        for validate, context in ((validate_locations, initial), (validate_channels, schedule)):
+            try:
+                validate(rows, context, original_times=original_times)
+            except ValueError as error:
+                if not args.historical_replay:
+                    raise ValueError(f"{stage}: {error}") from error
+                violations.append(f"{stage}: {error}")
 
-    check_locations(pipe, original_times=True)
+    check_schedule(pipe, original_times=True)
     link_cap = parse_link_cap(args.arch)
 
     wall_orig, cycles_orig = _wall_time_ms(pipe)
@@ -101,7 +101,7 @@ def main():
         debug=False,
         verify_postcondition=True,
     )
-    check_locations(res)
+    check_schedule(res)
     wall_extra, cycles_extra = _wall_time_ms(res)
 
     out = {
