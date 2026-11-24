@@ -14,97 +14,14 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, FrozenSet, List, Set, Tuple
 
 AE_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = AE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_channels, validate_locations
-from router.optim.early_execution import (  # noqa: E402
-    apply_deltas, is_move_row, qucomm_parallel_schedule,
-    row_channel_deltas, row_used_qubits,
-)
-
-Pos = Tuple[int, int]
-Edge = Tuple[Pos, Pos]
-Row = Dict[str, Any]
-
-_LINK_CAP_BY_ARCH = {
-    "F120": 5, "F180": 5, "F240": 5,
-    "F500": 18, "F800": 18, "F1100": 18,
-}
-
-
-def parse_link_cap(arch: str) -> int:
-    if arch in _LINK_CAP_BY_ARCH:
-        return _LINK_CAP_BY_ARCH[arch]
-    m = re.search(r"C(\d+)", arch)
-    return int(m.group(1)) if m else 5
-
-
-def verify_pipeline(pipeline, init_ch, min_v, max_v, link_cap):
-    violations: List[str] = []
-    rows_by_time: Dict[int, List[Row]] = defaultdict(list)
-    for r in pipeline:
-        rows_by_time[r["Time"]].append(r)
-
-    for t in sorted(rows_by_time):
-        seen: Set[int] = set()
-        for r in rows_by_time[t]:
-            for q in row_used_qubits(r):
-                if q in seen:
-                    violations.append(f"(a) qubit-collision@{t}: q{q}")
-                seen.add(q)
-
-    last_seen: Dict[int, int] = {}
-    for r in sorted(pipeline, key=lambda x: x["Time"]):
-        t = r["Time"]
-        for q in row_used_qubits(r):
-            if q in last_seen and last_seen[q] > t:
-                violations.append(f"(b) qubit-order: q{q} {last_seen[q]} > {t}")
-            last_seen[q] = max(last_seen.get(q, t), t)
-
-    channel = dict(init_ch)
-    cap_dir = max_v // 2
-    for t in sorted(rows_by_time):
-        dir_count: Dict[Edge, int] = defaultdict(int)
-        touched: Set[Edge] = set()
-        for r in rows_by_time[t]:
-            deltas = row_channel_deltas(r)
-            for e, dv in deltas:
-                if dv > 0:
-                    dir_count[e] += 1
-                touched.add(e)
-            apply_deltas(channel, deltas)
-        for e, cnt in dir_count.items():
-            if cnt > cap_dir:
-                violations.append(f"(d) edge-cap@{t}: {e} {cnt}>{cap_dir}")
-        for e in touched:
-            v = channel.get(e, 0)
-            if v < min_v or v > max_v:
-                violations.append(f"(c) cap@{t}: {e}={v} out-of-bounds")
-
-    for t in sorted(rows_by_time):
-        link_count: Dict[FrozenSet[Pos], int] = defaultdict(int)
-        for r in rows_by_time[t]:
-            if r["CNOT"] or not is_move_row(r):
-                continue
-            if r["SPos"] != r["SNextPos"]:
-                link = frozenset({r["SPos"], r["SNextPos"]})
-            elif r["TPos"] != r["TNextPos"]:
-                link = frozenset({r["TPos"], r["TNextPos"]})
-            else:
-                continue
-            link_count[link] += 1
-        for link, cnt in link_count.items():
-            if cnt > link_cap:
-                violations.append(f"(e) link-cap@{t}: {sorted(link)} {cnt}>{link_cap}")
-
-    return violations
+from analysis.schedule_postprocess import parse_link_cap, replay_schedule
 
 
 _DS2MAPPER = {"MinCut": "ILP", "GCP-E": "GCP-ILP", "sOEE": "OEE-ILP", "WBCP": "WBCP"}
@@ -170,39 +87,21 @@ def main() -> int:
     for variant, arch, mapper, bench, sched in targets:
         label = f"{variant}/{arch}/{mapper}/{bench}"
         link_cap = parse_link_cap(arch)
-        stage = "emitted"
         try:
-            schedule = read_schedule(sched)
-            initial = initial_locations(schedule)
-            pipe, init_ch = pipeline_rows(schedule.pop("ops"))
-            validate_locations(pipe, initial, original_times=True)
-            validate_channels(pipe, schedule, original_times=True)
-            res, viols = pipe, []
-            if variant == "IRIS":
-                stage = "postprocessed"
-                res = qucomm_parallel_schedule(
-                    pipe, init_ch, min_comm_value=args.min_comm, max_comm_value=args.max_comm,
-                    link_epr_capacity=link_cap, debug=False,
-                )
-                validate_locations(res, initial)
-                validate_channels(res, schedule)
-                viols = verify_pipeline(res, init_ch, args.min_comm, args.max_comm, link_cap)
+            _, rows, metadata = replay_schedule(
+                sched, link_cap if variant == "IRIS" else None,
+                min_comm_value=args.min_comm, max_comm_value=args.max_comm,
+            )
         except Exception as exc:
-            print(f"  FAIL {label} ({stage}): {type(exc).__name__}: {exc}")
+            print(f"  FAIL {label}: {exc}")
             fail += 1
             if args.stop_on_fail:
                 return 1
             continue
-        if viols:
-            print(f"  FAIL {label} ({len(res)} ops): {len(viols)} violations")
-            for v in viols[:5]:
-                print(f"      - {v}")
-            fail += 1
-            if args.stop_on_fail:
-                return 1
-        else:
-            print(f"  OK   {label} ({len(res)} ops, link_cap={link_cap})")
-            ok += 1
+        print(f"  OK   {label} ({len(rows)} ops, link_cap={link_cap})")
+        if metadata["candidate_rejection"]:
+            print(f"       retained original cycles: {metadata['candidate_rejection']}")
+        ok += 1
 
     print(f"\nSUMMARY: {ok} OK, {fail} FAIL (out of {ok + fail})")
     return 0 if fail == 0 else 1

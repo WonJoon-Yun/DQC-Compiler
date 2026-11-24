@@ -14,13 +14,14 @@ Output JSON fields:
     wall_time_ms_orig    -- sum of per-cycle max durations (original)
     wall_time_ms_extra   -- same metric on the extra-opt schedule
     link_epr_capacity    -- per-link EPR cap used for the optimizer
-    violations           -- first location and channel errors per replay stage in historical mode
+    selection            -- parallelized or original_cycles
+    candidate_rejection  -- directional-channel failure that required the original cycles
+    violations           -- validation failures on the historical schedule
 """
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -29,27 +30,7 @@ SRC_DIR = AE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from analysis.schedule_locations import initial_locations, pipeline_rows, read_schedule, validate_channels, validate_locations
-from router.optim.early_execution import qucomm_parallel_schedule  # noqa: E402
-
-
-_ARCH_LINK_CAP = {
-    "F120": 5, "F180": 5, "F240": 5,
-    "F500": 18, "F800": 18, "F1100": 18,
-}
-
-
-def parse_link_cap(arch: str) -> int:
-    if arch in _ARCH_LINK_CAP:
-        return _ARCH_LINK_CAP[arch]
-    m = re.search(r"C(\d+)", arch)
-    if m:
-        return int(m.group(1))
-    raise SystemExit(f"Cannot infer link_epr_capacity from arch: {arch}")
-
-
-def schedule_to_pipeline(schedule_path: Path):
-    return pipeline_rows(read_schedule(schedule_path)["ops"])
+from analysis.schedule_postprocess import parse_link_cap, replay_schedule
 
 
 def _wall_time_ms(rows):
@@ -74,34 +55,9 @@ def main():
                     help="Reproduce archived timing and record location and channel errors in the output")
     args = ap.parse_args()
 
-    schedule = read_schedule(args.schedule)
-    initial = initial_locations(schedule)
-    pipe, init_ch = pipeline_rows(schedule.pop("ops"))
-    violations = []
-
-    def check_schedule(rows, *, original_times=False):
-        stage = "emitted" if original_times else "postprocessed"
-        for validate, context in ((validate_locations, initial), (validate_channels, schedule)):
-            try:
-                validate(rows, context, original_times=original_times)
-            except ValueError as error:
-                if not args.historical_replay:
-                    raise ValueError(f"{stage}: {error}") from error
-                violations.append(f"{stage}: {error}")
-
-    check_schedule(pipe, original_times=True)
     link_cap = parse_link_cap(args.arch)
-
+    pipe, res, metadata = replay_schedule(args.schedule, link_cap, historical_replay=args.historical_replay)
     wall_orig, cycles_orig = _wall_time_ms(pipe)
-
-    res = qucomm_parallel_schedule(
-        pipe, init_ch,
-        min_comm_value=-1000, max_comm_value=2000,
-        link_epr_capacity=link_cap,
-        debug=False,
-        verify_postcondition=True,
-    )
-    check_schedule(res)
     wall_extra, cycles_extra = _wall_time_ms(res)
 
     out = {
@@ -115,7 +71,7 @@ def main():
         "wall_time_ms_orig": wall_orig,
         "wall_time_ms_extra": wall_extra,
         "speedup": (wall_orig / wall_extra) if wall_extra > 0 else None,
-        "violations": violations,
+        **metadata,
     }
     if args.historical_replay:
         out["historical_replay"] = True

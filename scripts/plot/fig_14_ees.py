@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """Fig 14: EES schedule overlay.
 QuComm + IRIS-opt0 use raw tracer end_times. IRIS-opt1 replays its EES schedule
-through qucomm_parallel_schedule (extra-opt) and reports the parallelized
-cumulative curve.
+through the same validated extra-opt selection as the timing sidecar.
 
 """
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -19,44 +17,13 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (find_schedule, find_tracer, load_tracer_ms,  # noqa: E402
                      setup_rcparams, INCLUDED_OPTYPES)
-from router.optim.early_execution import qucomm_parallel_schedule  # noqa: E402
-
-
-_LINK_CAP = {"F120": 5, "F180": 5, "F240": 5,
-             "F500": 18, "F800": 18, "F1100": 18}
-
-
-def _schedule_to_pipeline(schedule_path):
-    data = json.loads(schedule_path.read_text())
-    ops = data["ops"]
-    starts = sorted({o["original_start_time"] for o in ops})
-    s2t = {s: i for i, s in enumerate(starts)}
-    pipe, chips = [], set()
-    for o in ops:
-        t = s2t[o["original_start_time"]]
-        pos0, pos1 = tuple(o["pos0"]), tuple(o["pos1"])
-        chips.add(pos0); chips.add(pos1)
-        bid = int(o["layer_id"])
-        dur = float(o.get("original_duration", 0.0))
-        if o["optype"] in ("Local CNOT", "Re-CNOT"):
-            r = {"Time": t, "CNOT": True, "SIdx": int(o["atom0"]), "TIdx": int(o["atom1"]),
-                 "SPos": pos0, "SNextPos": pos0, "TPos": pos1, "TNextPos": pos1,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        else:
-            r = {"Time": t, "CNOT": False, "SIdx": int(o["atom0"]), "TIdx": int(o["atom0"]),
-                 "SPos": pos0, "SNextPos": pos1, "TPos": pos0, "TNextPos": pos0,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        pipe.append(r)
-    init_ch = {(a, b): 0 for a in chips for b in chips if a != b}
-    return pipe, init_ch
+from analysis.schedule_postprocess import parse_link_cap, replay_schedule
 
 
 def _replay(schedule_path, link_cap):
-    pipe, init_ch = _schedule_to_pipeline(schedule_path)
-    res = qucomm_parallel_schedule(
-        pipe, init_ch, min_comm_value=-1000, max_comm_value=2000,
-        link_epr_capacity=link_cap, debug=False,
-    )
+    _, res, metadata = replay_schedule(schedule_path, link_cap)
+    if metadata["candidate_rejection"]:
+        print(f"Retained original cycles: {metadata['candidate_rejection']}")
     by_cycle = {}
     for r in res:
         by_cycle.setdefault(r["Time"], []).append(r)
@@ -83,7 +50,7 @@ def main():
     args = ap.parse_args()
 
     setup_rcparams()
-    link_cap = _LINK_CAP.get(args.arch, 5)
+    link_cap = parse_link_cap(args.arch)
 
     datasets = []
     for stage, color, root, replay in [
