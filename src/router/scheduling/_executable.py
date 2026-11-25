@@ -66,8 +66,9 @@ class ExecutableMixin:
         BARRIER_BY_TIME = getattr(self.args, 'schedule_barrier_by_time', True)
         keep_channel_order = getattr(self, '_channel_aware_blocks', False) and not BARRIER_BY_TIME
         SERIALIZE_WITHIN_BUCKET = getattr(self.args, 'schedule_serialize_within_bucket', False)
-        CAP_CHANNELS = getattr(self.args, 'schedule_cap_channels', False)
-        MAX_CHANNEL_PER_EDGE = getattr(self.args, 'max_parallel_per_link', None) or getattr(self.args, 'num_communication_qubits', 1)
+        link_qubits = getattr(self.args, 'num_communication_per_link', None)
+        CAP_CHANNELS = getattr(self.args, 'schedule_cap_channels', False) or link_qubits is not None
+        MAX_CHANNEL_PER_EDGE = getattr(self.args, 'max_parallel_per_link', None) or link_qubits or getattr(self.args, 'num_communication_qubits', 1)
         self._reset_schedule_replay_records()
         self.schedule_replay_policy = {'scheduler_variant': 'K3_1', 'schedule_merge_layers': bool(MERGE_LAYERS), 'schedule_barrier_by_time': bool(BARRIER_BY_TIME), 'schedule_serialize_within_bucket': bool(SERIALIZE_WITHIN_BUCKET), 'schedule_cap_channels': bool(CAP_CHANNELS), 'max_parallel_per_link': None if MAX_CHANNEL_PER_EDGE is None else int(MAX_CHANNEL_PER_EDGE)}
 
