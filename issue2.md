@@ -17,7 +17,7 @@ The reported CZ omission is reproducible at the published revision `896e8da`. In
 - [ ] **Item 3. Measure distributed results on the selected QFT input.**
   - **a. Quantify literal zero angles.** The five released QFT inputs contain 39,970 literal `cp(0)` operations. Level-zero lowering leaves two CXs per occurrence. The comparison run removes only those zero-angle operations before the same basis translation. The smallest positive angle in these QFT inputs is π/2⁴¹. [Released inputs](https://zenodo.org/records/22152933)
   - **b. Select the primary input.** Use the released QASM and preserve every instruction in the primary comparison. Removing only literal `cp(0)` is the sensitivity comparison. For QFT180 these inputs yield 32,490 and 13,308 logical CXs respectively.
-  - **c. Measure physical outcomes on the selected input.** Distributed `num_local_cnots`, remote CNOTs, movement and execution time require a new schedule. Those measurements and paper aggregates remain open. Eight Figure 16 entries have declaration-only loaders in place of source QASM and are outside the 51-circuit audit.
+  - **c. Measure physical outcomes on both inputs.** QFT120, QFT180 and QFT240 are the only QFT inputs with published runs. Each was routed with QuComm, IRIS-noEES and IRIS from a fresh MinCut ILP mapping, which all three variants share. The runs use this branch merged with PR #5 at `c646806`, whose scheduling fixes make the schedules pass the issue #1 checks. All 18 schedules pass location, directional-channel and per-link occupancy replay. In every run the scheduled local CNOTs equal the parser's directed CX count, and no run uses a remote CNOT. On the primary input, IRIS uses 17%, 30% and 31% fewer state teleports than QuComm and has 45%, 46% and 39% lower latency. Removing literal `cp(0)` lowers QuComm latency by 9%, 23% and 32% and IRIS latency by 49%, 57% and 55%. With that input, IRIS QFT240 uses 1,420 state teleports and QuComm uses 1,370. Eight Figure 16 entries have declaration-only loaders in place of source QASM and are outside the 51-circuit audit. [Per-run results](revision/issue2-distributed-qft.tsv) · [Tabulation script](revision/issue2_distributed_qft.py)
 
 | Input | Published modeled interactions | Native CX | Literal CP(0) | CX after removing literal CP(0) |
 |---|---:|---:|---:|---:|
@@ -27,6 +27,20 @@ The reported CZ omission is reproducible at the published revision `896e8da`. In
 | QFT180 | 16,380 | 32,490 | 9,591 | 13,308 |
 | QFT240 | 29,040 | 57,720 | 19,701 | 18,318 |
 | All 51 released sources | 636,422 | 704,477 | 39,970 | 624,537 |
+
+The distributed rows below use the same scheduler for all three workloads. The published-workload rows come from the PR #5 reroute of the archived mapping and its 7,320, 16,380 and 29,040 interactions. IRIS latency is the postprocessed value.
+
+| Input | Workload | QuComm state teleports | IRIS state teleports | QuComm ms | IRIS ms |
+|---|---|---:|---:|---:|---:|
+| QFT120 | Published | 988 | 698 | 1,540.86 | 854.14 |
+| QFT120 | Primary | 1,058 | 876 | 2,224.10 | 1,214.54 |
+| QFT120 | Without `cp(0)` | 442 | 414 | 2,026.91 | 617.30 |
+| QFT180 | Published | 3,978 | 2,282 | 3,664.21 | 2,170.37 |
+| QFT180 | Primary | 3,134 | 2,196 | 4,473.74 | 2,399.59 |
+| QFT180 | Without `cp(0)` | 933 | 691 | 3,430.97 | 1,023.37 |
+| QFT240 | Published | 7,302 | 4,580 | 4,782.71 | 2,965.63 |
+| QFT240 | Primary | 6,978 | 4,806 | 6,752.25 | 4,138.78 |
+| QFT240 | Without `cp(0)` | 1,370 | 1,420 | 4,577.51 | 1,840.00 |
 
 - [x] **Item 4. Compare parser CXs with the single-chip scheduler counter.**
   - **a. Run the compiler on each fixture.** Use one chip with three compute qubits, a fresh trivial mapping and IRIS4. All 24 standard gate names compiled. Across the 46 standalone cases with a nonempty CX stream, the reference and parser each counted 94 CXs. The completed schedule contained the same directed CNOTs in the same order for every case. The per-run `num_local_cnots` agreed in all 46 cases and summed to 94. Both teleportation counters stayed at zero. [Single-chip results](revision/issue2-single-chip.tsv)
@@ -44,6 +58,25 @@ python revision/issue2_gate_audit.py
 python revision/issue2_single_chip.py
 python revision/issue2_parse_dataset.py --inputs ../IRIS-dataset/bench \
   --output results/issue2/native --report results/issue2/circuits.tsv
+```
+
+To repeat the distributed QFT runs, check out a merge of this branch with PR #5. The commands below route both inputs into fresh result trees and then tabulate them. A different CBC build can return a different optimal mapping.
+
+```sh
+bench=$(cd ../IRIS-dataset/bench && pwd)
+nozero=$(mktemp -d) && mkdir "$nozero/qft"
+for n in 120 180 240; do grep -v '^cp(0) ' "$bench/qft/qft_n$n.qasm" > "$nozero/qft/qft_n$n.qasm"; done
+primary_out=$(mktemp -d) nozero_out=$(mktemp -d)
+for pair in "$bench:$primary_out" "$nozero:$nozero_out"; do
+  for run in F120:qft_n120 F180:qft_n180 F240:qft_n240; do
+    for script in run_qucomm run_iris_opt0 run_iris_opt1; do
+      BENCH_DIR=${pair%%:*} RESULTS_DIR=${pair#*:} bash scripts/$script.sh ${run#*:} ${run%%:*} ILP
+    done
+  done
+done
+python revision/issue2_distributed_qft.py --primary "$primary_out" --sensitivity "$nozero_out" \
+  --qasm "$bench" > distributed-qft.tsv
+diff -u revision/issue2-distributed-qft.tsv distributed-qft.tsv
 ```
 
 `ProgramParser(path)()` supplies the directed CX stream to the mapper. `ProgramParser(path).to_native_circuit()` exposes the full lowered circuit. The parser can represent zero-CX circuits. The existing mapper still requires a nonempty interaction stream.
