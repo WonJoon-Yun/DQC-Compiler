@@ -5,6 +5,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from analysis.schedule_rescore import replay_saved_schedule
 from hyperparameters import HyperParameters
 from router._iris import IRISRouter
 
@@ -55,6 +56,17 @@ class LinkConcurrencyTest(unittest.TestCase):
         _, moves = schedule([[hop(0, 0, 0, RIGHT, LEFT), hop(0, 0, 2, LEFT, RIGHT),
                               hop(1, 0, 1, RIGHT, LEFT)]])
         self.assertEqual({m["original_start_time"] for m in moves.values()}, {0.0})
+
+
+    def test_rescore_replay_reproduces_the_capped_schedule(self):
+        router, moves = schedule([[hop(0, 0, 0, RIGHT, LEFT), hop(0, 0, 2, LEFT, RIGHT),
+                                   hop(1, 0, 1, RIGHT, LEFT), hop(1, 0, 3, LEFT, RIGHT)]])
+        payload = {"scheduler_policy": router.schedule_replay_policy,
+                   "ops": router.schedule_replay_records}
+        rows, summary = replay_saved_schedule(payload, router.args)
+        replayed = {row["atom0"]: (row["start_time"], row["end_time"]) for row in rows}
+        self.assertEqual(replayed, {atom: (m["original_start_time"], m["original_end_time"])
+                                    for atom, m in moves.items()})
 
 
 if __name__ == "__main__":

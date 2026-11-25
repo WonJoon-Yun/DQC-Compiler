@@ -124,15 +124,23 @@ def _summary_from_replay(
     }
 
 
+_PRIORITY = {"Local CNOT": 1, "Re-CNOT": 1, "RELOCATE": 2, "Transfer": 2, "MOVE": 2}
+
+
+def _link_of(record: dict[str, Any]) -> tuple | None:
+    if record["optype"] in ("RELOCATE", "Transfer", "Re-CNOT"):
+        return tuple(sorted((tuple(record["pos0"]), tuple(record["pos1"]))))
+    return None
+
+
 def replay_saved_schedule(
     payload: dict[str, Any],
     args: HyperParameters,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     scheduler_policy = payload.get("scheduler_policy") or {}
-    if scheduler_policy.get("schedule_cap_channels"):
-        raise ValueError(
-            "Rescore replay does not support schedules built with schedule_cap_channels=True."
-        )
+    link_cap = (int(scheduler_policy["max_parallel_per_link"])
+                if scheduler_policy.get("schedule_cap_channels") else None)
+    link_use: dict[tuple, int] = defaultdict(int)
 
     raw_ops = payload.get("ops") or []
     id_to_record: dict[str, dict[str, Any]] = {}
@@ -177,8 +185,16 @@ def replay_saved_schedule(
                 if all(id_to_record[dep_id]["is_done"] for dep_id in record["dependency_ids"])
             ]
             ready.sort(key=lambda record: int(record["count"]))
+            if link_cap is not None:
+                ready.sort(key=lambda record: (_PRIORITY.get(record["optype"], 3), -record["duration"]),
+                           reverse=True)
             started_any = False
             for record in ready:
+                link = _link_of(record) if link_cap is not None else None
+                if link is not None:
+                    if link_use[link] >= link_cap:
+                        continue
+                    link_use[link] += 1
                 record["start_time"] = current_time
                 running.append(record)
                 layer_pending.remove(record)
@@ -202,6 +218,8 @@ def replay_saved_schedule(
                 record["is_done"] = True
                 record["end_time"] = current_time
                 running.remove(record)
+                if link_cap is not None and _link_of(record) is not None:
+                    link_use[_link_of(record)] -= 1
                 fidelity = replay_metrics._build_tracer_fidelity_metadata(
                     record["optype"],
                     current_time,
