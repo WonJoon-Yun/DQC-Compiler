@@ -1,4 +1,4 @@
-# IRIS — Artifact Evaluation Package
+# IRIS · Artifact Evaluation Package
 
 This repository contains the IRIS compiler, our implementation of the QuComm
 baseline, and the scripts that regenerate the tables and figures in the paper. 
@@ -184,3 +184,7 @@ DQC-Compiler/
 ├── tests/                        # EES post-condition tests + schedule verifier
 └── notebooks/quick_start.ipynb   # Hands-on experience
 ```
+
+## 7. Acknowledgments
+
+We sincerely thank Boshuai Ye ([@Bossy-Ye](https://github.com/Bossy-Ye)) for his careful and independent reproduction of IRIS. His feedback substantially improved the correctness of this artifact.
