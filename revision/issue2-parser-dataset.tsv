@@ -1,52 +1,52 @@
-source_qasm	qubits	source_cp	prior_modeled_cx	parser_cx	reference_cx	prior_one_qubit_instructions	one_qubit_instructions	source_exact_zero_cp	reference_cx_without_exact_zero_cp	native_qpy_gz
-bb_72_12_6/bb_72_12_6_n144.qasm	144	0	2592	2592	2592	2304	2304	0	2592	bb_72_12_6/bb_72_12_6_n144.qpy.gz
-bv/bv_n100.qasm	100	0	99	99	99	299	299	0	99	bv/bv_n100.qpy.gz
-bv/bv_n120.qasm	120	0	119	119	119	359	359	0	119	bv/bv_n120.qpy.gz
-bv/bv_n150.qasm	150	0	149	149	149	449	449	0	149	bv/bv_n150.qpy.gz
-bv/bv_n180.qasm	180	0	179	179	179	539	539	0	179	bv/bv_n180.qpy.gz
-bv/bv_n240.qasm	240	0	239	239	239	719	719	0	239	bv/bv_n240.qpy.gz
-color_61_1_9/color_61_1_9_n121.qasm	121	0	2808	2808	2808	5845	5845	0	2808	color_61_1_9/color_61_1_9_n121.qpy.gz
-qaoa_3reg/qaoa_3reg_n100.qasm	100	0	300	300	300	200	350	0	300	qaoa_3reg/qaoa_3reg_n100.qpy.gz
-qaoa_3reg/qaoa_3reg_n1100.qasm	1100	0	3300	3300	3300	3850	3850	0	3300	qaoa_3reg/qaoa_3reg_n1100.qpy.gz
-qaoa_3reg/qaoa_3reg_n120.qasm	120	0	360	360	360	240	420	0	360	qaoa_3reg/qaoa_3reg_n120.qpy.gz
-qaoa_3reg/qaoa_3reg_n150.qasm	150	0	450	450	450	300	525	0	450	qaoa_3reg/qaoa_3reg_n150.qpy.gz
-qaoa_3reg/qaoa_3reg_n180.qasm	180	0	540	540	540	360	630	0	540	qaoa_3reg/qaoa_3reg_n180.qpy.gz
-qaoa_3reg/qaoa_3reg_n240.qasm	240	0	720	720	720	480	840	0	720	qaoa_3reg/qaoa_3reg_n240.qpy.gz
-qaoa_3reg/qaoa_3reg_n250.qasm	250	0	750	750	750	500	875	0	750	qaoa_3reg/qaoa_3reg_n250.qpy.gz
-qaoa_3reg/qaoa_3reg_n32.qasm	32	0	96	96	96	64	112	0	96	qaoa_3reg/qaoa_3reg_n32.qpy.gz
-qaoa_3reg/qaoa_3reg_n350.qasm	350	0	1050	1050	1050	1225	1225	0	1050	qaoa_3reg/qaoa_3reg_n350.qpy.gz
-qaoa_3reg/qaoa_3reg_n370.qasm	370	0	1110	1110	1110	740	1295	0	1110	qaoa_3reg/qaoa_3reg_n370.qpy.gz
-qaoa_3reg/qaoa_3reg_n400.qasm	400	0	1200	1200	1200	800	1400	0	1200	qaoa_3reg/qaoa_3reg_n400.qpy.gz
-qaoa_3reg/qaoa_3reg_n500.qasm	500	0	1500	1500	1500	1750	1750	0	1500	qaoa_3reg/qaoa_3reg_n500.qpy.gz
-qaoa_3reg/qaoa_3reg_n800.qasm	800	0	2400	2400	2400	1600	2800	0	2400	qaoa_3reg/qaoa_3reg_n800.qpy.gz
-qaoa_fc/qaoa_fc_n100.qasm	100	0	9900	9900	9900	200	5150	0	9900	qaoa_fc/qaoa_fc_n100.qpy.gz
-qaoa_fc/qaoa_fc_n120.qasm	120	0	14280	14280	14280	240	7380	0	14280	qaoa_fc/qaoa_fc_n120.qpy.gz
-qaoa_fc/qaoa_fc_n150.qasm	150	0	22350	22350	22350	300	11475	0	22350	qaoa_fc/qaoa_fc_n150.qpy.gz
-qaoa_fc/qaoa_fc_n180.qasm	180	0	32220	32220	32220	360	16470	0	32220	qaoa_fc/qaoa_fc_n180.qpy.gz
-qaoa_fc/qaoa_fc_n240.qasm	240	0	57360	57360	57360	480	29160	0	57360	qaoa_fc/qaoa_fc_n240.qpy.gz
-qft/qft_n100.qasm	100	4950	5100	10050	10050	100	14950	1711	6628	qft/qft_n100.qpy.gz
-qft/qft_n120.qasm	120	7140	7320	14460	14460	120	21540	3081	8298	qft/qft_n120.qpy.gz
-qft/qft_n150.qasm	150	11175	11400	22575	22575	150	33675	5886	10803	qft/qft_n150.qpy.gz
-qft/qft_n180.qasm	180	16110	16380	32490	32490	180	48510	9591	13308	qft/qft_n180.qpy.gz
-qft/qft_n240.qasm	240	28680	29040	57720	57720	240	86280	19701	18318	qft/qft_n240.qpy.gz
-qugan/qugan_n100.qasm	100	0	586	586	586	692	692	0	586	qugan/qugan_n100.qpy.gz
-qugan/qugan_n120.qasm	120	0	706	706	706	832	832	0	706	qugan/qugan_n120.qpy.gz
-qugan/qugan_n150.qasm	150	0	886	886	886	1042	1042	0	886	qugan/qugan_n150.qpy.gz
-qugan/qugan_n180.qasm	180	0	1066	1066	1066	1252	1252	0	1066	qugan/qugan_n180.qpy.gz
-qugan/qugan_n240.qasm	240	0	1426	1426	1426	1672	1672	0	1426	qugan/qugan_n240.qpy.gz
-qv/qv_n100.qasm	100	0	15000	15000	15000	40000	40000	0	15000	qv/qv_n100.qpy.gz
-qv/qv_n120.qasm	120	0	21600	21600	21600	57600	57600	0	21600	qv/qv_n120.qpy.gz
-qv/qv_n150.qasm	150	0	33750	33750	33750	90000	90000	0	33750	qv/qv_n150.qpy.gz
-qv/qv_n180.qasm	180	0	48600	48600	48600	129600	129600	0	48600	qv/qv_n180.qpy.gz
-qv/qv_n240.qasm	240	0	86400	86400	86400	230400	230400	0	86400	qv/qv_n240.qpy.gz
-shor/shor_n100.qasm	100	0	9308	9308	9308	13918	13918	0	9308	shor/shor_n100.qpy.gz
-shor/shor_n120.qasm	120	0	13558	13558	13558	20288	20288	0	13558	shor/shor_n120.qpy.gz
-shor/shor_n150.qasm	150	0	21433	21433	21433	32093	32093	0	21433	shor/shor_n150.qpy.gz
-shor/shor_n180.qasm	180	0	31108	31108	31108	46598	46598	0	31108	shor/shor_n180.qpy.gz
-shor/shor_n240.qasm	240	0	55858	55858	55858	83708	83708	0	55858	shor/shor_n240.qpy.gz
-surface_code/surface_code_n97.qasm	97	0	1176	1176	1176	1057	1057	0	1176	surface_code/surface_code_n97.qpy.gz
-vqe/vqe_n100.qasm	100	0	5040	5040	5040	5010	5010	0	5040	vqe/vqe_n100.qpy.gz
-vqe/vqe_n120.qasm	120	0	7240	7240	7240	7210	7210	0	7240	vqe/vqe_n120.qpy.gz
-vqe/vqe_n150.qasm	150	0	11290	11290	11290	11260	11260	0	11290	vqe/vqe_n150.qpy.gz
-vqe/vqe_n180.qasm	180	0	16240	16240	16240	16210	16210	0	16240	vqe/vqe_n180.qpy.gz
-vqe/vqe_n240.qasm	240	0	28840	28840	28840	28810	28810	0	28840	vqe/vqe_n240.qpy.gz
+source_qasm	qubits	source_cp	prior_modeled_cx	parser_cx	reference_cx	prior_one_qubit_instructions	one_qubit_instructions	source_exact_zero_cp	native_qpy_gz
+bb_72_12_6/bb_72_12_6_n144.qasm	144	0	2592	2592	2592	2304	2304	0	bb_72_12_6/bb_72_12_6_n144.qpy.gz
+bv/bv_n100.qasm	100	0	99	99	99	299	299	0	bv/bv_n100.qpy.gz
+bv/bv_n120.qasm	120	0	119	119	119	359	359	0	bv/bv_n120.qpy.gz
+bv/bv_n150.qasm	150	0	149	149	149	449	449	0	bv/bv_n150.qpy.gz
+bv/bv_n180.qasm	180	0	179	179	179	539	539	0	bv/bv_n180.qpy.gz
+bv/bv_n240.qasm	240	0	239	239	239	719	719	0	bv/bv_n240.qpy.gz
+color_61_1_9/color_61_1_9_n121.qasm	121	0	2808	2808	2808	5845	5845	0	color_61_1_9/color_61_1_9_n121.qpy.gz
+qaoa_3reg/qaoa_3reg_n100.qasm	100	0	300	300	300	200	350	0	qaoa_3reg/qaoa_3reg_n100.qpy.gz
+qaoa_3reg/qaoa_3reg_n1100.qasm	1100	0	3300	3300	3300	3850	3850	0	qaoa_3reg/qaoa_3reg_n1100.qpy.gz
+qaoa_3reg/qaoa_3reg_n120.qasm	120	0	360	360	360	240	420	0	qaoa_3reg/qaoa_3reg_n120.qpy.gz
+qaoa_3reg/qaoa_3reg_n150.qasm	150	0	450	450	450	300	525	0	qaoa_3reg/qaoa_3reg_n150.qpy.gz
+qaoa_3reg/qaoa_3reg_n180.qasm	180	0	540	540	540	360	630	0	qaoa_3reg/qaoa_3reg_n180.qpy.gz
+qaoa_3reg/qaoa_3reg_n240.qasm	240	0	720	720	720	480	840	0	qaoa_3reg/qaoa_3reg_n240.qpy.gz
+qaoa_3reg/qaoa_3reg_n250.qasm	250	0	750	750	750	500	875	0	qaoa_3reg/qaoa_3reg_n250.qpy.gz
+qaoa_3reg/qaoa_3reg_n32.qasm	32	0	96	96	96	64	112	0	qaoa_3reg/qaoa_3reg_n32.qpy.gz
+qaoa_3reg/qaoa_3reg_n350.qasm	350	0	1050	1050	1050	1225	1225	0	qaoa_3reg/qaoa_3reg_n350.qpy.gz
+qaoa_3reg/qaoa_3reg_n370.qasm	370	0	1110	1110	1110	740	1295	0	qaoa_3reg/qaoa_3reg_n370.qpy.gz
+qaoa_3reg/qaoa_3reg_n400.qasm	400	0	1200	1200	1200	800	1400	0	qaoa_3reg/qaoa_3reg_n400.qpy.gz
+qaoa_3reg/qaoa_3reg_n500.qasm	500	0	1500	1500	1500	1750	1750	0	qaoa_3reg/qaoa_3reg_n500.qpy.gz
+qaoa_3reg/qaoa_3reg_n800.qasm	800	0	2400	2400	2400	1600	2800	0	qaoa_3reg/qaoa_3reg_n800.qpy.gz
+qaoa_fc/qaoa_fc_n100.qasm	100	0	9900	9900	9900	200	5150	0	qaoa_fc/qaoa_fc_n100.qpy.gz
+qaoa_fc/qaoa_fc_n120.qasm	120	0	14280	14280	14280	240	7380	0	qaoa_fc/qaoa_fc_n120.qpy.gz
+qaoa_fc/qaoa_fc_n150.qasm	150	0	22350	22350	22350	300	11475	0	qaoa_fc/qaoa_fc_n150.qpy.gz
+qaoa_fc/qaoa_fc_n180.qasm	180	0	32220	32220	32220	360	16470	0	qaoa_fc/qaoa_fc_n180.qpy.gz
+qaoa_fc/qaoa_fc_n240.qasm	240	0	57360	57360	57360	480	29160	0	qaoa_fc/qaoa_fc_n240.qpy.gz
+qft/qft_n100.qasm	100	4950	5100	10050	10050	100	14950	1711	qft/qft_n100.qpy.gz
+qft/qft_n120.qasm	120	7140	7320	14460	14460	120	21540	3081	qft/qft_n120.qpy.gz
+qft/qft_n150.qasm	150	11175	11400	22575	22575	150	33675	5886	qft/qft_n150.qpy.gz
+qft/qft_n180.qasm	180	16110	16380	32490	32490	180	48510	9591	qft/qft_n180.qpy.gz
+qft/qft_n240.qasm	240	28680	29040	57720	57720	240	86280	19701	qft/qft_n240.qpy.gz
+qugan/qugan_n100.qasm	100	0	586	586	586	692	692	0	qugan/qugan_n100.qpy.gz
+qugan/qugan_n120.qasm	120	0	706	706	706	832	832	0	qugan/qugan_n120.qpy.gz
+qugan/qugan_n150.qasm	150	0	886	886	886	1042	1042	0	qugan/qugan_n150.qpy.gz
+qugan/qugan_n180.qasm	180	0	1066	1066	1066	1252	1252	0	qugan/qugan_n180.qpy.gz
+qugan/qugan_n240.qasm	240	0	1426	1426	1426	1672	1672	0	qugan/qugan_n240.qpy.gz
+qv/qv_n100.qasm	100	0	15000	15000	15000	40000	40000	0	qv/qv_n100.qpy.gz
+qv/qv_n120.qasm	120	0	21600	21600	21600	57600	57600	0	qv/qv_n120.qpy.gz
+qv/qv_n150.qasm	150	0	33750	33750	33750	90000	90000	0	qv/qv_n150.qpy.gz
+qv/qv_n180.qasm	180	0	48600	48600	48600	129600	129600	0	qv/qv_n180.qpy.gz
+qv/qv_n240.qasm	240	0	86400	86400	86400	230400	230400	0	qv/qv_n240.qpy.gz
+shor/shor_n100.qasm	100	0	9308	9308	9308	13918	13918	0	shor/shor_n100.qpy.gz
+shor/shor_n120.qasm	120	0	13558	13558	13558	20288	20288	0	shor/shor_n120.qpy.gz
+shor/shor_n150.qasm	150	0	21433	21433	21433	32093	32093	0	shor/shor_n150.qpy.gz
+shor/shor_n180.qasm	180	0	31108	31108	31108	46598	46598	0	shor/shor_n180.qpy.gz
+shor/shor_n240.qasm	240	0	55858	55858	55858	83708	83708	0	shor/shor_n240.qpy.gz
+surface_code/surface_code_n97.qasm	97	0	1176	1176	1176	1057	1057	0	surface_code/surface_code_n97.qpy.gz
+vqe/vqe_n100.qasm	100	0	5040	5040	5040	5010	5010	0	vqe/vqe_n100.qpy.gz
+vqe/vqe_n120.qasm	120	0	7240	7240	7240	7210	7210	0	vqe/vqe_n120.qpy.gz
+vqe/vqe_n150.qasm	150	0	11290	11290	11290	11260	11260	0	vqe/vqe_n150.qpy.gz
+vqe/vqe_n180.qasm	180	0	16240	16240	16240	16210	16210	0	vqe/vqe_n180.qpy.gz
+vqe/vqe_n240.qasm	240	0	28840	28840	28840	28810	28810	0	vqe/vqe_n240.qpy.gz

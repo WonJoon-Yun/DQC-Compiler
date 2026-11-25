@@ -72,15 +72,6 @@ def compile_one(path, inputs, output):
     reference_traces = cx_by_wire(expected, source.num_qubits)
     del reference
     zero_cp = sum(exact_zero_cp(inst) for inst in source.data)
-    cx_without_zero_cp = len(expected)
-    if zero_cp:
-        filtered = source.copy_empty_like()
-        for inst in source.data:
-            if not exact_zero_cp(inst):
-                filtered.append(inst.operation, inst.qubits, inst.clbits)
-        cx_without_zero_cp = basis_translation(filtered).count_ops().get("cx", 0)
-        if cx_without_zero_cp != len(expected) - 2 * zero_cp:
-            raise ValueError(f"{relative}: unexpected CX count after removing exact CP(0)")
     parsed = ProgramParser(str(path))
     native = parsed.to_native_circuit()
     stored = output / relative.with_suffix(".qpy.gz")
@@ -104,7 +95,7 @@ def compile_one(path, inputs, output):
         tmp.unlink(missing_ok=True)
     return (str(relative), source.num_qubits, source_counts.get("cp", 0), old_cx,
             parsed.num_2q_gates, len(expected), old_one, parsed.num_1q_gates,
-            zero_cp, cx_without_zero_cp, str(stored.relative_to(output)))
+            zero_cp, str(stored.relative_to(output)))
 
 
 def main():
@@ -126,8 +117,7 @@ def main():
         writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         writer.writerow(("source_qasm", "qubits", "source_cp", "prior_modeled_cx",
                          "parser_cx", "reference_cx", "prior_one_qubit_instructions",
-                         "one_qubit_instructions", "source_exact_zero_cp",
-                         "reference_cx_without_exact_zero_cp", "native_qpy_gz"))
+                         "one_qubit_instructions", "source_exact_zero_cp", "native_qpy_gz"))
         writer.writerows(rows)
 
 

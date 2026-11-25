@@ -1,19 +1,10 @@
-variant	benchmark	input	parser_cx	num_local_cnots	num_gate_teleportations	num_state_teleportations	T_eff	raw_ms	postprocessed_ms	postprocess_selection
-QuComm	qft_n120	primary	14460	14460	0	1058	1058.00	2224.09612		
-QuComm	qft_n180	primary	32490	32490	0	3134	3134.00	4473.73972		
-QuComm	qft_n240	primary	57720	57720	0	6978	6978.00	6752.24708		
-IRIS-noEES	qft_n120	primary	14460	14460	0	876	876.00	2070.35332		
-IRIS-noEES	qft_n180	primary	32490	32490	0	2196	2196.00	3621.93132		
-IRIS-noEES	qft_n240	primary	57720	57720	0	4806	4806.00	5411.73596		
-IRIS	qft_n120	primary	14460	14460	0	876	876.00	1214.53796	1214.53796	original_cycles
-IRIS	qft_n180	primary	32490	32490	0	2196	2196.00	2399.58880	2399.58880	original_cycles
-IRIS	qft_n240	primary	57720	57720	0	4806	4806.00	4138.78108	4138.78108	original_cycles
-QuComm	qft_n120	cp0_removed	8298	8298	0	442	442.00	2026.91184		
-QuComm	qft_n180	cp0_removed	13308	13308	0	933	933.00	3430.97368		
-QuComm	qft_n240	cp0_removed	18318	18318	0	1370	1370.00	4577.51312		
-IRIS-noEES	qft_n120	cp0_removed	8298	8298	0	414	414.00	1991.56260		
-IRIS-noEES	qft_n180	cp0_removed	13308	13308	0	691	691.00	3184.21428		
-IRIS-noEES	qft_n240	cp0_removed	18318	18318	0	1420	1420.00	4556.02876		
-IRIS	qft_n120	cp0_removed	8298	8298	0	414	414.00	617.29656	617.29656	original_cycles
-IRIS	qft_n180	cp0_removed	13308	13308	0	691	691.00	1094.84116	1023.37448	parallelized
-IRIS	qft_n240	cp0_removed	18318	18318	0	1420	1420.00	1839.99948	1839.99948	original_cycles
+variant	benchmark	parser_cx	num_local_cnots	num_gate_teleportations	num_state_teleportations	T_eff	raw_ms	postprocessed_ms	postprocess_selection
+QuComm	qft_n120	14460	14460	0	1058	1058.00	2224.09612		
+QuComm	qft_n180	32490	32490	0	3134	3134.00	4473.73972		
+QuComm	qft_n240	57720	57720	0	6978	6978.00	6752.24708		
+IRIS-noEES	qft_n120	14460	14460	0	876	876.00	2070.35332		
+IRIS-noEES	qft_n180	32490	32490	0	2196	2196.00	3621.93132		
+IRIS-noEES	qft_n240	57720	57720	0	4806	4806.00	5411.73596		
+IRIS	qft_n120	14460	14460	0	876	876.00	1214.53796	1214.53796	original_cycles
+IRIS	qft_n180	32490	32490	0	2196	2196.00	2399.58880	2399.58880	original_cycles
+IRIS	qft_n240	57720	57720	0	4806	4806.00	4138.78108	4138.78108	original_cycles
