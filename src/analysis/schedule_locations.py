@@ -80,6 +80,7 @@ def validate_locations(rows, initial, *, original_times=False):
 def validate_channels(rows, schedule, *, original_times=False):
     """At a shared timestamp, completed hops return their slots before new reservations."""
     events = []
+    link_events = []
     for row in rows:
         src = row["SPos"]
         if row["_optype"] == "RELOCATE":
@@ -94,6 +95,9 @@ def validate_channels(rows, schedule, *, original_times=False):
         end = row["_end"] if original_times else start + 1
         if end <= start:
             raise ValueError(f"Invalid channel interval in block {row['BlockID']}")
+        link = tuple(sorted((src, dst)))
+        link_events.append((start, 1, link, row["BlockID"]))
+        link_events.append((end, -1, link, row["BlockID"]))
         for debit, credit, floor in reservations:
             # At equal starts, admit permanent moves before temporary gate reservations.
             events.append((start, 1 if floor else 2, debit, -1, debit, floor, row["BlockID"]))
@@ -125,3 +129,12 @@ def validate_channels(rows, schedule, *, original_times=False):
         if phase and balances[edge] < floor:
             raise ValueError(f"block {block}, time {time}: directional channel {edge} "
                              f"has {balances[edge]} slots, requires at least {floor}")
+    pairs = (schedule.get("args_snapshot") or {}).get("num_communication_per_link")
+    if pairs is None:
+        return
+    occupancy = Counter()
+    for time, step, link, block in sorted(link_events):
+        occupancy[link] += step
+        if occupancy[link] > pairs:
+            raise ValueError(f"block {block}, time {time}: link {link} carries {occupancy[link]} "
+                             f"inter-chip operations, has {pairs} interconnect pairs")

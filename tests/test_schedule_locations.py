@@ -59,6 +59,19 @@ class LocationReplayTest(unittest.TestCase):
                 self.assertIn("(emitted)", run.stdout)
                 self.assertIn("directional channel", run.stdout)
 
+    def test_raw_rejects_more_concurrent_hops_than_interconnect_pairs_for_all_variants(self):
+        left, right = (0, 0), (1, 0)
+        hops = [op("RELOCATE", (0, 0), (left, right), 0, 0), op("RELOCATE", (1, 1), (left, right), 0, 1),
+                op("RELOCATE", (2, 2), (right, left), 0, 2), op("RELOCATE", (3, 3), (right, left), 0, 3)]
+        for variant in ("IRIS", "IRIS-noEES", "QuComm"):
+            with self.subTest(variant=variant):
+                run = self.verify(hops, variant=variant, capacity=3)
+                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                self.assertIn("(emitted)", run.stdout)
+                self.assertIn("carries 4 inter-chip operations, has 3 interconnect pairs", run.stdout)
+                run = self.verify(hops[:3], variant=variant, capacity=3)
+                self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
     def test_explicit_relocation_and_remote_gate(self):
         left, right = (0, 0), (1, 0)
         run = self.verify([op("Re-CNOT", (1, 2), (left, right), 0, 0),
