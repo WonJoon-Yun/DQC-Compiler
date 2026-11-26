@@ -1,0 +1,6 @@
+case	blocks	operations	local_cnots	state_teleports	channel_releases	minimum_balance_before	minimum_balance_after	groups_before	groups_after	ticks_before	ticks_after	raw_ms_before	raw_ms_after	delta_percent
+bv_n120-S40C5-2x2	14	192	119	73	0	1	1	14	14	192	192	132.39484	132.39484	0.0
+qaoa_3reg_n350-S40C3-3x4	216	1619	1050	569	1	-1	1	33	33	566	610	487.33216	541.4936	11.1139
+qft_n180-S42C5-2x3	3640	20358	16380	3978	4	-2	1	369	369	3998	4320	3394.4998	3664.21088	7.9455
+vqe_n180-S42C5-2x3	4716	18239	16240	1999	1	-1	1	342	342	2898	2975	2115.18952	2188.4756	3.4648
+shor_n120-S40C5-2x2	3084	15309	13558	1751	0	-1	1	453	453	3978	4142	2392.49088	2524.66476	5.5245

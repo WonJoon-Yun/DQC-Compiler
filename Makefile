@@ -12,7 +12,7 @@ help:
 	@echo "make smoke         Run bv_n120 × 3 variants with the paper's mapping (~3 min; needs make bench)"
 	@echo "make sweep         Run 8-bench × 3-variant × 3-arch × n=120/180/240 (multi-hour)"
 	@echo "make bench         Copy benchmarks + mapping caches from the IRIS-dataset (DATASET=$(DATASET))"
-	@echo "make tests         Run EES post-condition unit tests + verify_extra_opt"
+	@echo "make tests         Run parser, routing and EES tests, then verify all three smoke schedules"
 	@echo "make summary       Write results/summary.csv from current results"
 	@echo "make clean         Remove results/ and figures/"
 
@@ -31,8 +31,9 @@ sweep:
 	RESULTS_DIR=$(PWD)/$(RESULTS)/_full bash $(SCRIPTS)/reproduce_all.sh
 
 tests:
+	$(PY) -m unittest discover -s tests -p 'test_*.py'
 	$(PY) tests/test_ees_postcondition.py
-	$(PY) tests/verify_extra_opt.py --root $(RESULTS)/_smoke
+	$(PY) tests/verify_extra_opt.py --root $(RESULTS)/_smoke --variant IRIS --variant IRIS-noEES --variant QuComm
 
 summary:
 	$(PY) $(SCRIPTS)/summarize_results.py --root $(RESULTS)/_full

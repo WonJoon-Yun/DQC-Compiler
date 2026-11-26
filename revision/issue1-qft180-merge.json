@@ -1,0 +1,267 @@
+{
+  "benchmark": "MinCut/QuComm/qft_n180-S42C5-2x3",
+  "equivalent_routing_implementation_revision": "4b5c4b979ecb886045d9c44a148aa27326e34475",
+  "ees_enabled": false,
+  "event_fields": [
+    "local_merge_tick",
+    "saved_time_bucket_idx",
+    "moves as [block,atom,from,to]",
+    "directional_balance_after_tick"
+  ],
+  "first_failure_fields": [
+    "merged_group",
+    "local_merge_tick",
+    "saved_time_bucket_idx",
+    "directional_balance_after_tick"
+  ],
+  "planner_matched_all_edges_blocks": 348,
+  "serial_grouped_minimum": 1,
+  "checked_merged_groups": 75,
+  "matching_merged_IR_and_saved_moves": 595,
+  "first_strict": [
+    41,
+    3,
+    382,
+    0
+  ],
+  "first_negative": [
+    74,
+    1,
+    711,
+    -1
+  ],
+  "traces": {
+    "41": {
+      "blocks": [
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121
+      ],
+      "edge": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "entry": 1,
+      "events": [
+        [
+          3,
+          382,
+          [
+            [
+              116,
+              94,
+              [
+                1,
+                2
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          ],
+          0
+        ],
+        [
+          4,
+          383,
+          [
+            [
+              115,
+              130,
+              [
+                1,
+                1
+              ],
+              [
+                1,
+                2
+              ]
+            ]
+          ],
+          1
+        ]
+      ],
+      "planner_block_ends": [
+        [
+          115,
+          2
+        ],
+        [
+          116,
+          1
+        ],
+        [
+          117,
+          1
+        ],
+        [
+          118,
+          1
+        ],
+        [
+          119,
+          1
+        ],
+        [
+          120,
+          1
+        ],
+        [
+          121,
+          1
+        ]
+      ]
+    },
+    "74": {
+      "blocks": [
+        338,
+        339,
+        340,
+        341,
+        342,
+        343,
+        344,
+        345,
+        346
+      ],
+      "edge": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "entry": 1,
+      "events": [
+        [
+          0,
+          710,
+          [
+            [
+              346,
+              70,
+              [
+                0,
+                2
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          ],
+          0
+        ],
+        [
+          1,
+          711,
+          [
+            [
+              345,
+              155,
+              [
+                0,
+                2
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          ],
+          -1
+        ],
+        [
+          3,
+          713,
+          [
+            [
+              340,
+              1,
+              [
+                0,
+                1
+              ],
+              [
+                0,
+                2
+              ]
+            ]
+          ],
+          0
+        ],
+        [
+          6,
+          716,
+          [
+            [
+              344,
+              158,
+              [
+                0,
+                1
+              ],
+              [
+                0,
+                2
+              ]
+            ]
+          ],
+          1
+        ]
+      ],
+      "planner_block_ends": [
+        [
+          338,
+          1
+        ],
+        [
+          339,
+          1
+        ],
+        [
+          340,
+          2
+        ],
+        [
+          341,
+          2
+        ],
+        [
+          342,
+          2
+        ],
+        [
+          343,
+          2
+        ],
+        [
+          344,
+          3
+        ],
+        [
+          345,
+          2
+        ],
+        [
+          346,
+          1
+        ]
+      ]
+    }
+  }
+}

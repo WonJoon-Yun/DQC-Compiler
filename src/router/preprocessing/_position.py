@@ -56,7 +56,10 @@ class PositionMixin:
                         continue
                     else:
                         if _is_flat_atom(idx):
-                            gates.append((cnt, (lookahead[key2][i], lookahead[key2][i+1]), "RELOCATE", self.args.time_int_SWAP, (sidx, tidx), f"{UniqueID}_{uuid4().hex}"))
+                            move = (cnt, (lookahead[key2][i], lookahead[key2][i+1]), "RELOCATE", self.args.time_int_SWAP, (sidx, tidx), f"{UniqueID}_{uuid4().hex}")
+                            if "evicted_atom" in lookahead:
+                                move += (lookahead["evicted_atom"],)
+                            gates.append(move)
                             cnt += 1
                             continue
                         if self.atom_type[idx] == "SLM":

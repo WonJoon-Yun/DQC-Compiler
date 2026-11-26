@@ -7,20 +7,21 @@ Usage:
         --out <path>/extra_opt.json
 
 Output JSON fields:
-    teff_orig            -- original effective teleportation count (= ops)
-    teff_extra_opt       -- after parallelization
+    teff_orig            -- legacy field counting original operation rows
+    teff_extra_opt       -- operation rows after parallelization
     cycles_orig          -- number of distinct original time slots
     cycles_extra_opt     -- number of cycles after parallelization
     wall_time_ms_orig    -- sum of per-cycle max durations (original)
     wall_time_ms_extra   -- same metric on the extra-opt schedule
     link_epr_capacity    -- per-link EPR cap used for the optimizer
-    violations           -- list of post-condition violations (empty on success)
+    selection            -- parallelized or original_cycles
+    candidate_rejection  -- directional-channel failure that required the original cycles
+    violations           -- validation failures on the historical schedule
 """
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -29,55 +30,7 @@ SRC_DIR = AE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from router.optim.early_execution import qucomm_parallel_schedule  # noqa: E402
-
-
-_ARCH_LINK_CAP = {
-    "F120": 5, "F180": 5, "F240": 5,
-    "F500": 18, "F800": 18, "F1100": 18,
-}
-
-
-def parse_link_cap(arch: str) -> int:
-    if arch in _ARCH_LINK_CAP:
-        return _ARCH_LINK_CAP[arch]
-    m = re.search(r"C(\d+)", arch)
-    if m:
-        return int(m.group(1))
-    raise SystemExit(f"Cannot infer link_epr_capacity from arch: {arch}")
-
-
-def schedule_to_pipeline(schedule_path: Path):
-    if str(schedule_path).endswith(".gz"):
-        import gzip
-        data = json.loads(gzip.decompress(schedule_path.read_bytes()))
-    else:
-        data = json.loads(schedule_path.read_text())
-    ops = data["ops"]
-    starts = sorted({o["original_start_time"] for o in ops})
-    s2t = {s: i for i, s in enumerate(starts)}
-    pipe, chips = [], set()
-    for o in ops:
-        t = s2t[o["original_start_time"]]
-        pos0 = tuple(o["pos0"])
-        pos1 = tuple(o["pos1"])
-        chips.add(pos0)
-        chips.add(pos1)
-        bid = int(o["layer_id"])
-        dur = float(o.get("original_duration", 0.0))
-        if o["optype"] in ("Local CNOT", "Re-CNOT"):
-            r = {"Time": t, "CNOT": True,
-                 "SIdx": int(o["atom0"]), "TIdx": int(o["atom1"]),
-                 "SPos": pos0, "SNextPos": pos0, "TPos": pos1, "TNextPos": pos1,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        else:
-            r = {"Time": t, "CNOT": False,
-                 "SIdx": int(o["atom0"]), "TIdx": int(o["atom0"]),
-                 "SPos": pos0, "SNextPos": pos1, "TPos": pos0, "TNextPos": pos0,
-                 "BlockID": bid, "_dur": dur, "_optype": o["optype"]}
-        pipe.append(r)
-    init_ch = {(a, b): 0 for a in chips for b in chips if a != b}
-    return pipe, init_ch
+from analysis.schedule_postprocess import parse_link_cap, replay_schedule
 
 
 def _wall_time_ms(rows):
@@ -98,20 +51,13 @@ def main():
                     help="Architecture preset (F120/F180/F240/F500/F800/F1100)")
     ap.add_argument("--out", required=True, type=Path,
                     help="Output JSON path")
+    ap.add_argument("--historical-replay", action="store_true",
+                    help="Reproduce archived timing and record location and channel errors in the output")
     args = ap.parse_args()
 
-    pipe, init_ch = schedule_to_pipeline(args.schedule)
     link_cap = parse_link_cap(args.arch)
-
+    pipe, res, metadata = replay_schedule(args.schedule, link_cap, historical_replay=args.historical_replay)
     wall_orig, cycles_orig = _wall_time_ms(pipe)
-
-    res = qucomm_parallel_schedule(
-        pipe, init_ch,
-        min_comm_value=-1000, max_comm_value=2000,
-        link_epr_capacity=link_cap,
-        debug=False,
-        verify_postcondition=True,
-    )
     wall_extra, cycles_extra = _wall_time_ms(res)
 
     out = {
@@ -125,8 +71,10 @@ def main():
         "wall_time_ms_orig": wall_orig,
         "wall_time_ms_extra": wall_extra,
         "speedup": (wall_orig / wall_extra) if wall_extra > 0 else None,
-        "violations": [],
+        **metadata,
     }
+    if args.historical_replay:
+        out["historical_replay"] = True
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, indent=2))
     print(f"wrote {args.out}: cycles {cycles_orig} -> {cycles_extra}, "

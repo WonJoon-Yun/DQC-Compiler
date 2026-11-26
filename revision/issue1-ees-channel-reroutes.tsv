@@ -1,0 +1,4 @@
+case	blocks	operations	local_cnots	moves	raw_ticks_before	raw_ticks_after	raw_min_before	raw_min_after	raw_ms_before	raw_ms_after	post_cycles_before	post_cycles_after	post_min_before	post_min_after	post_ms_before	post_ms_after
+bv_n120-S40C5-2x2	14	180	119	61	158	158	1	1	87.37884	87.37884	151	151	1	1	85.27632	85.27632
+bv_n240-S40C5-3x3	33	497	239	258	400	400	-1	1	288.02096	289.04460	383	383	-1	1	279.84392	280.86756
+qaoa_3reg_n32-S40C5-2x2	19	118	96	22	48	48	3	3	27.72460	27.72460	47	47	3	3	27.42424	27.42424

@@ -16,6 +16,7 @@ from ._constants import _normalize_channels_struct_only
 from ._dag import BuildBlockDAG
 from ._utils import _qucomm_window_lookahead_depth, routing_method
 from ._validation import get_agg_node
+from .scheduling.channel_merge import ChannelAwareBlockMerger
 
 def _slim_atom_paths(atom_paths):
     """Return {qubit: [current_pos]} — just the tip of each path."""
@@ -81,57 +82,18 @@ class IRISRouter(BaselineRouter):
         self.pre_schedule_channel_dict = None
 
     def _run_pipeline_optimization(self, pipeline, initial_channel_dict, min_comm_value, max_comm_value):
-        (opt_pipeline, early_executed_dict) = pipeline_optimization(list(pipeline), dict(initial_channel_dict), min_comm_value, max_comm_value, debug=True, progress_fn=None, retry_trace_interval=0, block_trace_interval=0)
-        return (opt_pipeline, early_executed_dict)
+        return pipeline_optimization(
+            list(pipeline), dict(initial_channel_dict), min_comm_value, max_comm_value,
+            reserve_directional_slots=True,
+        )
 
     @staticmethod
-    def _merge_schedule_segments(schedules, after_schedule):
-        if len(schedules) == 0:
-            return list(after_schedule)
-        for after_sch in after_schedule:
-            prev_atoms = set()
-            for sched_entry in schedules[-1]:
-                prev_atoms.add(sched_entry['SIdx'])
-                prev_atoms.add(sched_entry['TIdx'])
-            curr_atoms = set()
-            for sched_entry in after_sch:
-                curr_atoms.add(sched_entry['SIdx'])
-                curr_atoms.add(sched_entry['TIdx'])
-            if len(curr_atoms & prev_atoms) == 0:
-                schedules[-1].extend(after_sch)
-            else:
-                schedules.append(after_sch)
-        return schedules
-
-    @staticmethod
-    def _build_ees_flat_pipeline(schedule_segments):
-        from .optim.ees import append_schedule_segment_to_pipeline
-        pipeline = []
-        duplicated = set()
-        segment_start = 0
-        current_segment_max_time = None
-        prev_segment_atoms = set()
-        for schedule in schedule_segments:
-            curr_atoms = set()
-            for entry in schedule:
-                curr_atoms.add(entry['SIdx'])
-                curr_atoms.add(entry['TIdx'])
-            seg_max_time = max((entry['Time'] for entry in schedule), default=0)
-            if current_segment_max_time is None:
-                append_schedule_segment_to_pipeline(pipeline, schedule, start_T=segment_start, duplicated=duplicated)
-                current_segment_max_time = seg_max_time
-                prev_segment_atoms = curr_atoms
-                continue
-            overlap = len(curr_atoms & prev_segment_atoms)
-            if overlap == 0:
-                append_schedule_segment_to_pipeline(pipeline, schedule, start_T=segment_start, duplicated=duplicated)
-                current_segment_max_time = max(current_segment_max_time, seg_max_time)
-                prev_segment_atoms.update(curr_atoms)
-                continue
-            segment_start += int(current_segment_max_time) + 1
-            append_schedule_segment_to_pipeline(pipeline, schedule, start_T=segment_start, duplicated=duplicated)
-            current_segment_max_time = seg_max_time
-            prev_segment_atoms = curr_atoms
+    def _build_ees_flat_pipeline(schedule_segments, initial_channels):
+        from .optim.ees import build_pipeline_from_schedules
+        merger = ChannelAwareBlockMerger(initial_channels)
+        for segment in schedule_segments:
+            merger.append(segment)
+        pipeline, _ = build_pipeline_from_schedules(merger.groups)
         return pipeline
 
     @staticmethod
@@ -229,17 +191,13 @@ class IRISRouter(BaselineRouter):
         for (atom, pos) in self.position_table.items():
             atom_paths[int(atom)].append(pos)
         enable_ees = bool(getattr(self.args, 'enable_ees', False))
-        schedules = []
-        ees_pipeline = []
+        self._channel_aware_blocks = True
         ees_epochs = []
-        ees_duplicated = set()
-        ees_segment_start = 0
-        ees_current_segment_max_time = None
-        ees_prev_segment_atoms = set()
         self._reset_block_metric_tracking()
         channel_dict = self._build_initial_channel_dict()
         self.pre_schedule_chip_data_qubit_counts = {tuple(node): int(count) for (node, count) in sorted(Counter(self.position_table.values()).items(), key=lambda item: str(item[0]))}
         initial_channel_dict = dict(channel_dict)
+        block_merger = ChannelAwareBlockMerger(initial_channel_dict)
         cnt = 0
         gate_cnt = 0
         block_id_cnt = 0
@@ -303,59 +261,50 @@ class IRISRouter(BaselineRouter):
                 interact_info = {q: list(gates) for (q, gates) in plan.interact_info.items()}
             after_schedule = plan.combined_schedule
             if enable_ees:
-                from .optim.ees import append_schedule_segment_to_pipeline
-                for after_sch in after_schedule:
-                    curr_atoms = set()
-                    for s in after_sch:
-                        curr_atoms.add(s['SIdx'])
-                        curr_atoms.add(s['TIdx'])
-                    seg_max_time = max((s['Time'] for s in after_sch), default=0)
-                    if ees_current_segment_max_time is None:
-                        append_schedule_segment_to_pipeline(ees_pipeline, after_sch, start_T=ees_segment_start, duplicated=ees_duplicated)
-                        ees_current_segment_max_time = seg_max_time
-                        ees_prev_segment_atoms = curr_atoms
-                    else:
-                        overlap = len(curr_atoms & ees_prev_segment_atoms)
-                        if overlap == 0:
-                            append_schedule_segment_to_pipeline(ees_pipeline, after_sch, start_T=ees_segment_start, duplicated=ees_duplicated)
-                            ees_current_segment_max_time = max(ees_current_segment_max_time, seg_max_time)
-                            ees_prev_segment_atoms.update(curr_atoms)
-                        else:
-                            ees_segment_start += int(ees_current_segment_max_time) + 1
-                            append_schedule_segment_to_pipeline(ees_pipeline, after_sch, start_T=ees_segment_start, duplicated=ees_duplicated)
-                            ees_current_segment_max_time = seg_max_time
-                            ees_prev_segment_atoms = curr_atoms
                 ees_epochs.append({'initial_channel_dict': segment_start_channel_dict, 'schedules': [list(seg) for seg in after_schedule]})
-            schedules = self._merge_schedule_segments(schedules, after_schedule)
+            else:
+                # The original merger kept the first K1 window's blocks in
+                # separate groups. Preserve that boundary for multi-block windows.
+                allow_overlap = bool(block_merger.groups)
+                for segment in after_schedule:
+                    block_merger.append(segment, allow_overlap=allow_overlap)
             for (block_id, per_block_metric) in zip(plan.done_ids, plan.per_block_metrics):
                 self._record_plan_block_metric(block_id, per_block_metric)
             round_num += 1
         from .optim.ees import run_ees
         mode_tag = f'{self.args.K1}-{self.args.K2}'
         if enable_ees:
-            epoch_pipelines = [remove_duplicate_rows(self._build_ees_flat_pipeline(epoch['schedules'])) for epoch in ees_epochs]
+            epoch_pipelines = [
+                remove_duplicate_rows(self._build_ees_flat_pipeline(epoch['schedules'],
+                                                                   epoch['initial_channel_dict']))
+                for epoch in ees_epochs
+            ]
             pipeline = self._flatten_epoch_pipelines(epoch_pipelines)
             if getattr(self.args, 'save_pipeline_json', False):
                 base = Path(self.args.routing_output_dir)
                 os.makedirs(base, exist_ok=True)
                 atomic_json_dump(pipeline, base / f'no-opt-{mode_tag}.json', sort_keys=True)
             start_time = time.time()
-            opt_pipeline = []
             early_executed_dict = {}
             for (epoch, epoch_pipeline) in zip(ees_epochs, epoch_pipelines):
                 if len(epoch_pipeline) == 0:
                     continue
                 (epoch_opt_pipeline, epoch_early_executed_dict) = self._run_pipeline_optimization(epoch_pipeline, epoch['initial_channel_dict'], 0, self._get_comm_qubits_per_link() * 2)
-                opt_pipeline = self._merge_schedule_segments(opt_pipeline, epoch_opt_pipeline)
+                for window in epoch_opt_pipeline:
+                    # EES ticks are relative to the epoch; merger groups own their clock.
+                    origin = min(row['Time'] for row in window)
+                    block_merger.append([dict(row, Time=row['Time'] - origin) for row in window]
+                                        if origin else window)
                 self._merge_early_executed_dicts(early_executed_dict, epoch_early_executed_dict)
             self.compile_time_for_early_execution += time.time() - start_time
             self.early_executed_dict = early_executed_dict
             cnt = 0
             self.IRLayers = []
-            for p in opt_pipeline:
+            for p in block_merger.groups:
                 self.IRLayers.append(self.GetQuCommLookaheadIR(p, verbose=verbose, cnt=cnt))
                 cnt += 1
         else:
+            schedules = block_merger.groups
             cnt = 0
             self.IRLayers = []
             for schedule in schedules:

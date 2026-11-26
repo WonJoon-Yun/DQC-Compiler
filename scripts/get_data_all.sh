@@ -65,9 +65,10 @@ if [[ "$MODE" == "dataset" ]]; then
 
   # IRIS latency sidecar: replay every IRIS schedule in the dataset once and
   # cache extra_opt.json outside the (read-only) dataset tree.
-  CACHE="$AE_ROOT/results/_dataset_cache"
+  CACHE="$AE_ROOT/results/_dataset_cache/location-audit-v1"
   export EXTRA_OPT_CACHE="$CACHE"
   echo "[get_data_all] source: dataset at $DS"
+  echo "[get_data_all] Historical replay preserves published timings. Location errors are recorded in each sidecar's violations field (issue #1)."
   echo "[get_data_all] EES replay sidecars -> $CACHE (cached; first run ~30 min)"
   for sched_gz in "$DS"/{MinCut,GCP-E,sOEE,WBCP}/IRIS/*/schedule.json.gz \
                   "$DS"/MinCut/IRIS-bw*/*/schedule.json.gz \
@@ -85,7 +86,7 @@ if [[ "$MODE" == "dataset" ]]; then
     [[ -f "$out" ]] && continue
     mkdir -p "$(dirname "$out")"
     python "$SCRIPT_DIR/apply_extra_opt.py" \
-        --schedule "$sched_gz" --arch "$archdir" --out "$out"
+        --schedule "$sched_gz" --arch "$archdir" --out "$out" --historical-replay
   done
 else
   RESULT_DIR="${RESULT_DIR_ARG:-$AE_ROOT/results/_full}"
