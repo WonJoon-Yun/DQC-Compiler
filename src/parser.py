@@ -11,14 +11,10 @@ class ProgramParser:
     def parse(self):
         qc = QuantumCircuit.from_qasm_file(self.filepath)
         self.num_qubits = qc.num_qubits
+        self.has_multiple_qregs = len(qc.qregs) > 1
         dag = circuit_to_dag(qc)
         for node in dag.topological_op_nodes():
-            qargs = []
-            for qubit in node.qargs:
-                idx = getattr(qubit, "index", None)
-                if idx is None: idx = getattr(qubit, "_index", None)
-                if idx is None: raise AttributeError(f"Qubit missing index attribute: {qubit!r}")
-                qargs.append(int(idx))
+            qargs = [qc.find_bit(qubit).index for qubit in node.qargs]
             if node.op.name == "cx" and len(qargs) == 2:
                 self.list_2q_gates.append((qargs[0], qargs[1]))
                 self.num_2q_gates += 1

@@ -1,6 +1,4 @@
 import copy
-import json
-import os
 import time
 import networkx.algorithms.community as nx_comm
 import numpy as np
@@ -8,7 +6,7 @@ from mapper._chip_selection import _finalize_chip_selection_result, chip_selecti
 from mapper._gcp import gcp_partition
 from mapper._partitioning import ProposedMapper
 from mapper._wbcp import wbcp_partition
-from utils import convert_ndarray_to_list
+from utils import atomic_json_dump, convert_ndarray_to_list
 
 class Mapper(ProposedMapper):
 
@@ -261,7 +259,7 @@ class Mapper(ProposedMapper):
                 new_qubit_mapping[int(lq)] = int(pq)
         return new_qubit_mapping
 
-    def compile(self):
+    def compile(self, refresh_cache_dir=None):
         if self.hardware.is_new_model:
             arch_frag = f'S{self.args.system_qubits_per_chip}C{self.args.num_communication_per_link}-{self.args.numchipletsx}x{self.args.numchipletsy}'
         else:
@@ -275,15 +273,17 @@ class Mapper(ProposedMapper):
         self.mapped_cmap = mapped_cmap
         self.layers = layers
         self.args.compile_time_mapper = sum(compile_time[:4])
-        os.makedirs(result_dir, exist_ok=True)
-        with open(f'{result_dir}/mapping.json', 'w') as f:
-            json_seralizable = convert_ndarray_to_list(self.qubit_mapping)
-            print(f'[INFO] Mapping: {json_seralizable}')
-            json.dump(json_seralizable, f)
-        with open(f'{result_dir}/layers.json', 'w') as f:
-            json_seralizable = convert_ndarray_to_list(self.layers)
-            json.dump(json_seralizable, f)
-        with open(f'{result_dir}/compile_time.json', 'w') as f:
-            compile_time_dict = {'preprocessing_time': compile_time[0], 'k_partitioning_time': compile_time[1], 'chip_selection_time': compile_time[2], 'remap_time': compile_time[3], 'cost_static_oee': compile_time[4], 'cost_ilp': getattr(self.args, 'mapping_cost_ilp', None), 'cost_wbcp_dynamic': getattr(self.args, 'mapping_cost_wbcp_dynamic', None)}
-            json.dump(compile_time_dict, f)
+        mapping = convert_ndarray_to_list(self.qubit_mapping)
+        layers = convert_ndarray_to_list(self.layers)
+        print(f'[INFO] Mapping: {mapping}')
+        timing = {'preprocessing_time': compile_time[0], 'k_partitioning_time': compile_time[1], 'chip_selection_time': compile_time[2], 'remap_time': compile_time[3], 'cost_static_oee': compile_time[4], 'cost_ilp': getattr(self.args, 'mapping_cost_ilp', None), 'cost_wbcp_dynamic': getattr(self.args, 'mapping_cost_wbcp_dynamic', None)}
+        output_dirs = {result_dir}
+        if refresh_cache_dir is not None:
+            output_dirs.add(refresh_cache_dir)
+            timing.update(cost=self.cost, use_oee_refine=self.args.use_oee_refine,
+                          oee_max_passes=self.args.oee_max_passes, oee_tol=self.args.oee_tol)
+        for directory in output_dirs:
+            atomic_json_dump(mapping, f'{directory}/mapping.json', indent=None)
+            atomic_json_dump(layers, f'{directory}/layers.json', indent=None)
+            atomic_json_dump(timing, f'{directory}/compile_time.json', indent=None)
         return (self.qubit_mapping, self.layers)
