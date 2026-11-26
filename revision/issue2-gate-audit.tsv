@@ -1,0 +1,54 @@
+input_family	case	result	parser_1q	reference_1q	parser_cx	reference_cx	directed_cx_global	max_matrix_error	cp_phase_ratio_imag	reference_method_alternatives_cx_1q
+qasm-legacy	ch	passed	6	6	1	1	2>0	2.336e-16	-	native
+qasm-legacy	cp	passed	3	3	2	2	2>0,2>0	1.119e-16	0.36254757834747919	native
+qasm-legacy	crx	passed	3	3	2	2	2>0,2>0	1.129e-17	-	native
+qasm-legacy	cry	passed	2	2	2	2	2>0,2>0	0.000e+00	-	native
+qasm-legacy	crz	passed	2	2	2	2	2>0,2>0	1.110e-16	-	native
+standard-definition	cs	passed	3	3	2	2	2>0,2>0	1.665e-16	-	declared-body
+bare-standard	bare-cs	passed	3	3	2	2	2>0,2>0	1.665e-16	-	definition (named=2/7,definition=2/3)
+standard-definition	csdg	passed	3	3	2	2	2>0,2>0	1.665e-16	-	declared-body
+bare-standard	bare-csdg	passed	3	3	2	2	2>0,2>0	1.665e-16	-	definition (named=3/7,definition=2/3)
+qasm-legacy	csx	passed	5	5	2	2	2>0,2>0	2.238e-16	-	native
+qasm-legacy	cu	passed	5	5	2	2	2>0,2>0	2.001e-16	-	native
+qasm-legacy	cu1	passed	3	3	2	2	2>0,2>0	1.119e-16	-	native
+qasm-legacy	cu3	passed	4	4	2	2	2>0,2>0	2.227e-16	-	native
+qasm-legacy	cx	passed	0	0	1	1	2>0	0.000e+00	-	native
+qasm-legacy	cy	passed	2	2	1	1	2>0	6.123e-17	-	native
+qasm-legacy	cz	passed	2	2	1	1	2>0	2.303e-16	-	native
+standard-definition	dcx	passed	0	0	2	2	2>0,0>2	0.000e+00	-	declared-body
+bare-standard	bare-dcx	passed	0	0	2	2	2>0,0>2	0.000e+00	-	named (named=2/0,definition=2/0)
+standard-definition	ecr	passed	7	7	4	4	2>0,2>0,2>0,2>0	3.832e-16	-	declared-body
+bare-standard	bare-ecr	passed	3	3	1	1	2>0	1.551e-16	-	named (named=1/3,definition=4/7)
+standard-definition	iswap	passed	4	4	2	2	2>0,0>2	2.536e-16	-	declared-body
+bare-standard	bare-iswap	passed	4	4	2	2	2>0,0>2	2.303e-16	-	named (named=2/4,definition=2/4)
+qasm-legacy	rxx	passed	5	5	2	2	2>0,2>0	3.331e-16	-	native
+standard-definition	ryy	passed	5	5	2	2	2>0,2>0	1.221e-16	-	declared-body
+bare-standard	bare-ryy	passed	5	5	2	2	2>0,2>0	1.147e-16	-	named (named=2/5,definition=2/5)
+standard-definition	rzx	passed	3	3	2	2	2>0,2>0	3.500e-16	-	declared-body
+bare-standard	bare-rzx	passed	3	3	2	2	2>0,2>0	2.220e-16	-	named (named=2/3,definition=2/3)
+qasm-legacy	rzz	passed	1	1	2	2	2>0,2>0	1.144e-16	-	native
+qasm-legacy	swap	passed	0	0	3	3	2>0,0>2,2>0	0.000e+00	-	native
+standard-definition	xx_minus_yy	passed	12	12	2	2	2>0,2>0	2.289e-16	-	declared-body
+bare-standard	bare-xx_minus_yy	passed	12	12	2	2	2>0,2>0	2.289e-16	-	named (named=2/12,definition=2/12)
+standard-definition	xx_plus_yy	passed	12	12	2	2	0>2,0>2	2.289e-16	-	declared-body
+bare-standard	bare-xx_plus_yy	passed	12	12	2	2	0>2,0>2	2.289e-16	-	named (named=2/12,definition=2/12)
+spelling-or-angle	CX-primitive	passed	0	0	1	1	2>0	0.000e+00	-	native
+spelling-or-angle	cp-zero	passed	3	3	2	2	2>0,2>0	0.000e+00	0	native
+spelling-or-angle	cp-pi	passed	3	3	2	2	2>0,2>0	0.000e+00	1.2246467991473532e-16	native
+spelling-or-angle	cp-pi4	passed	3	3	2	2	2>0,2>0	1.570e-16	0.70710678118654757	native
+spelling-or-angle	cp-pi8	passed	3	3	2	2	2>0,2>0	5.551e-17	0.38268343236508973	native
+spelling-or-angle	cp-tiny	passed	3	3	2	2	2>0,2>0	0.000e+00	3.5561568584135981e-72	native
+spelling-or-angle	rzz-zero	passed	1	1	2	2	2>0,2>0	0.000e+00	-	native
+user-definition	nested-asymmetric	passed	4	4	3	3	0>2,2>0,2>0	1.570e-16	-	declared-body
+user-definition	shadow-ecr-local	passed	1	1	0	0	-	6.123e-17	-	declared-body
+user-definition	shadow-ecr-reversed	passed	0	0	1	1	0>2	0.000e+00	-	declared-body
+user-definition	identity	passed	0	0	0	0	-	0.000e+00	-	declared-body
+user-definition	opaque	rejected	-	-	-	-	-	-	-	-
+matrix-definition	haar-u4-seed461	passed	8	8	3	3	2>0,2>0,2>0	1.214e-15	-	declared-body
+matrix-definition	tensor-local	passed	2	2	0	0	-	2.789e-16	-	declared-body
+declared-override	declared-cp	passed	1	1	1	1	0>2	0.000e+00	-	declared-body
+declared-override	declared-cz-no-qelib	passed	1	1	0	0	-	6.123e-17	-	declared-body
+declared-override	included-rzz	passed	1	1	1	1	0>2	0.000e+00	-	declared-body
+three-wire	raw-cswap	rejected	-	-	-	-	-	-	-	-
+three-wire	raw-ccx	rejected	-	-	-	-	-	-	-	-
+three-wire	external-cswap	passed	9	9	8	8	1>0,0>1,2>1,0>1,2>1,2>0,2>0,1>0	3.886e-16	-	native
