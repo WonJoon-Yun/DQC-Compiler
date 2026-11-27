@@ -16,7 +16,7 @@ qugan_n180-S42C5-2x3	parallelized	emitted channel, emitted location, postprocess
 qugan_n240-S40C5-3x3	parallelized	none	parallelized	0
 qv_n120-S40C5-2x2	parallelized	emitted channel, emitted location, postprocessed channel, postprocessed location	original_cycles	0
 qv_n180-S42C5-2x3	parallelized	emitted channel, emitted location, postprocessed channel, postprocessed location	original_cycles	0
-qv_n240-S40C5-3x3	parallelized	emitted channel, emitted location, postprocessed channel, postprocessed location	not ready	not ready
+qv_n240-S40C5-3x3	parallelized	emitted channel, emitted location, postprocessed channel, postprocessed location	original_cycles	0
 shor_n120-S40C5-2x2	parallelized	emitted channel, emitted location, postprocessed channel, postprocessed location	original_cycles	0
 shor_n180-S42C5-2x3	parallelized	emitted channel, emitted location, postprocessed channel, postprocessed location	original_cycles	0
 shor_n240-S40C5-3x3	parallelized	emitted channel, emitted location, postprocessed channel, postprocessed location	original_cycles	0

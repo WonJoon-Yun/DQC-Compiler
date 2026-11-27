@@ -97,12 +97,12 @@ table6	F240 qft_n240 IRIS-opt1	T_eff	4022.00	4580.00	13.87
 table6	F240 qft_n240 IRIS-opt1	L_seconds	2.275304	2.965625	30.34
 table6	F240 qugan_n240 QuComm	L_seconds	0.662318	0.663642	0.20
 table6	F240 qugan_n240 IRIS-opt1	L_seconds	0.411417	0.276666	-32.75
-table6	F240 qv_n240 QuComm	T_eff	51740.00	not ready	
-table6	F240 qv_n240 QuComm	L_seconds	9.807719	not ready	
-table6	F240 qv_n240 IRIS-opt0	T_eff	44901.00	not ready	
-table6	F240 qv_n240 IRIS-opt0	L_seconds	9.150727	not ready	
-table6	F240 qv_n240 IRIS-opt1	T_eff	44901.00	not ready	
-table6	F240 qv_n240 IRIS-opt1	L_seconds	4.701990	not ready	
+table6	F240 qv_n240 QuComm	T_eff	51740.00	51892.00	0.29
+table6	F240 qv_n240 QuComm	L_seconds	9.807719	20.183574	105.79
+table6	F240 qv_n240 IRIS-opt0	T_eff	44901.00	48314.00	7.60
+table6	F240 qv_n240 IRIS-opt0	L_seconds	9.150727	15.971506	74.54
+table6	F240 qv_n240 IRIS-opt1	T_eff	44901.00	48314.00	7.60
+table6	F240 qv_n240 IRIS-opt1	L_seconds	4.701990	8.835998	87.92
 table6	F240 shor_n240 QuComm	T_eff	7861.00	7867.00	0.08
 table6	F240 shor_n240 QuComm	L_seconds	6.617156	7.184308	8.57
 table6	F240 shor_n240 IRIS-opt0	T_eff	3471.00	3584.00	3.26
@@ -176,9 +176,9 @@ table9	F240 qft_n240	L_opt1_seconds	2.275304	2.965625	30.34
 table9	F240 qft_n240	speedup	1.483	1.215	-18.07
 table9	F240 qugan_n240	L_opt1_seconds	0.411417	0.276666	-32.75
 table9	F240 qugan_n240	speedup	1.343	1.997	48.70
-table9	F240 qv_n240	L_opt0_seconds	9.150727	not ready	
-table9	F240 qv_n240	L_opt1_seconds	4.701990	not ready	
-table9	F240 qv_n240	speedup	1.946	not ready	
+table9	F240 qv_n240	L_opt0_seconds	9.150727	15.971506	74.54
+table9	F240 qv_n240	L_opt1_seconds	4.701990	8.835998	87.92
+table9	F240 qv_n240	speedup	1.946	1.808	-7.09
 table9	F240 shor_n240	L_opt0_seconds	4.535667	4.604357	1.51
 table9	F240 shor_n240	L_opt1_seconds	2.610642	3.305005	26.60
 table9	F240 shor_n240	speedup	1.737	1.393	-19.80

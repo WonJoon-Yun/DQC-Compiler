@@ -8,7 +8,7 @@ strict EES replay. Every other run is shared, so only main-suite rows can change
 A configuration named with --pending keeps its published runs and is reported as not ready.
 
   python revision/issue1_revised_tables.py --dataset ../IRIS-dataset --reroutes <worker results> \
-      --pending qv_n240--F240 --out <fresh dir>
+      --out <fresh dir>
 """
 import argparse
 import csv
