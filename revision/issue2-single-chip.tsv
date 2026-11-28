@@ -1,0 +1,54 @@
+input_family	case	reference_cx	parser_cx	scheduled_local_cnots	num_local_cnots	num_gate_teleportations	num_state_teleportations	sentinel_plus_gate_local_cnots	incremental_local_cnots	standalone_outcome
+spelling-or-angle	CX-primitive	1	1	1	1	0	0			measured
+qasm-legacy	ch	1	1	1	1	0	0			measured
+qasm-legacy	cp	2	2	2	2	0	0			measured
+qasm-legacy	crx	2	2	2	2	0	0			measured
+qasm-legacy	cry	2	2	2	2	0	0			measured
+qasm-legacy	crz	2	2	2	2	0	0			measured
+standard-definition	cs	2	2	2	2	0	0			measured
+bare-standard	bare-cs	2	2	2	2	0	0			measured
+standard-definition	csdg	2	2	2	2	0	0			measured
+bare-standard	bare-csdg	2	2	2	2	0	0			measured
+qasm-legacy	csx	2	2	2	2	0	0			measured
+qasm-legacy	cu	2	2	2	2	0	0			measured
+qasm-legacy	cu1	2	2	2	2	0	0			measured
+qasm-legacy	cu3	2	2	2	2	0	0			measured
+qasm-legacy	cx	1	1	1	1	0	0			measured
+qasm-legacy	cy	1	1	1	1	0	0			measured
+qasm-legacy	cz	1	1	1	1	0	0			measured
+standard-definition	dcx	2	2	2	2	0	0			measured
+bare-standard	bare-dcx	2	2	2	2	0	0			measured
+standard-definition	ecr	4	4	4	4	0	0			measured
+bare-standard	bare-ecr	1	1	1	1	0	0			measured
+standard-definition	iswap	2	2	2	2	0	0			measured
+bare-standard	bare-iswap	2	2	2	2	0	0			measured
+qasm-legacy	rxx	2	2	2	2	0	0			measured
+standard-definition	ryy	2	2	2	2	0	0			measured
+bare-standard	bare-ryy	2	2	2	2	0	0			measured
+standard-definition	rzx	2	2	2	2	0	0			measured
+bare-standard	bare-rzx	2	2	2	2	0	0			measured
+qasm-legacy	rzz	2	2	2	2	0	0			measured
+qasm-legacy	swap	3	3	3	3	0	0			measured
+standard-definition	xx_minus_yy	2	2	2	2	0	0			measured
+bare-standard	bare-xx_minus_yy	2	2	2	2	0	0			measured
+standard-definition	xx_plus_yy	2	2	2	2	0	0			measured
+bare-standard	bare-xx_plus_yy	2	2	2	2	0	0			measured
+spelling-or-angle	cp-zero	2	2	2	2	0	0			measured
+spelling-or-angle	cp-pi	2	2	2	2	0	0			measured
+spelling-or-angle	cp-pi4	2	2	2	2	0	0			measured
+spelling-or-angle	cp-pi8	2	2	2	2	0	0			measured
+spelling-or-angle	cp-tiny	2	2	2	2	0	0			measured
+spelling-or-angle	rzz-zero	2	2	2	2	0	0			measured
+user-definition	nested-asymmetric	3	3	3	3	0	0			measured
+user-definition	shadow-ecr-local	0	0					1	0	mapper_rejected_empty
+user-definition	shadow-ecr-reversed	1	1	1	1	0	0			measured
+user-definition	identity	0	0					1	0	mapper_rejected_empty
+user-definition	opaque									parser_rejected
+matrix-definition	haar-u4-seed461	3	3	3	3	0	0			measured
+matrix-definition	tensor-local	0	0					1	0	mapper_rejected_empty
+declared-override	declared-cp	1	1	1	1	0	0			measured
+declared-override	declared-cz-no-qelib	0	0					1	0	mapper_rejected_empty
+declared-override	included-rzz	1	1	1	1	0	0			measured
+three-wire	raw-cswap									parser_rejected
+three-wire	raw-ccx									parser_rejected
+three-wire	external-cswap	8	8	8	8	0	0			measured

@@ -1,0 +1,10 @@
+variant	benchmark	parser_cx	num_local_cnots	num_gate_teleportations	num_state_teleportations	T_eff	raw_ms	postprocessed_ms	postprocess_selection
+QuComm	qft_n120	14460	14460	0	1058	1058.00	2224.09612		
+QuComm	qft_n180	32490	32490	0	3134	3134.00	4473.73972		
+QuComm	qft_n240	57720	57720	0	6978	6978.00	6752.24708		
+IRIS-noEES	qft_n120	14460	14460	0	876	876.00	2070.35332		
+IRIS-noEES	qft_n180	32490	32490	0	2196	2196.00	3621.93132		
+IRIS-noEES	qft_n240	57720	57720	0	4806	4806.00	5411.73596		
+IRIS	qft_n120	14460	14460	0	876	876.00	1214.53796	1214.53796	original_cycles
+IRIS	qft_n180	32490	32490	0	2196	2196.00	2399.58880	2399.58880	original_cycles
+IRIS	qft_n240	57720	57720	0	4806	4806.00	4138.78108	4138.78108	original_cycles
